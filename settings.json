@@ -1,0 +1,22 @@
+{
+  "gpt": {
+    "api-key": "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",
+    "prompt": "Pretend to be a british chess player"
+  },
+  "hardware": {
+    "serial-port": "COM4",
+    "baud-rate": "1200",
+    "max-speed": 20,
+    "acceleration": 5,
+    "config": {
+      "length-arm-1": 192.3,
+      "length-arm-2": 192.3,
+      "offset-joint-1": 0,
+      "offset-joint-2": 0,
+      "offset-grabber": 0
+    },
+    "board-positions": {
+      
+    }
+  }
+}
