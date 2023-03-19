@@ -1,6 +1,6 @@
 {
   "gpt": {
-    "api-key": "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",
+    "api-key": "openai api key here",
     "prompt": "Pretend to be a british chess player"
   },
   "hardware": {
@@ -11,6 +11,8 @@
     "config": {
       "length-arm-1": 192.3,
       "length-arm-2": 192.3,
+      "length-terminal-arm-1": 11,
+      "length-terminal-arm-2": 11,
       "offset-joint-1": 0,
       "offset-joint-2": 0,
       "offset-grabber": 0
