@@ -80,8 +80,6 @@ def _configure_widgets():
     ptg.Splitter.set_char("separator", "")
 
 # defines ui elements that must retain the same value after a menu page is reloaded
-
-
 def _define_widgets():
     global xy_step_slider, z_step_slider, connect_toggle
 
@@ -96,8 +94,6 @@ def _define_widgets():
     z_step_slider.value = 0.3
 
 # defines the window layout
-
-
 def _define_layout():
     """Defines the application layout.
 
@@ -137,11 +133,11 @@ def xy_steps(*_):
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state):
+    global ser
 
     if state == "Disconnect":
         try:
-            ser = serial.Serial(port=settings["hardware"]["serial-port"],
-                                baudrate=settings["hardware"]["baud-rate"], timeout=1)
+            ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
 
             bot_mainloop = threading.Thread(target=chess_bot.main, args=(ser,))
             bot_mainloop.start()
@@ -152,10 +148,7 @@ def toggle_connection(state):
 
     else:
         chess_bot.stop()
-        try:
-            ser.close()
-        except:
-            pass
+        ser.close()
 
 # creates an alert window prompting to save changes
 def save_prompt(page, save, _dosave=None):

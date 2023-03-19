@@ -1,7 +1,7 @@
 import numpy
 
 # draw a line on a pixel matrix, (0, 0) is in the upper right corner 
-def draw_line(matrix, x1, y1, x2, y2):
+def draw_line(matrix, x1, y1, x2, y2, char):
     # swap the endpoints if necessary so that we're always drawing right to left
     if x1 > x2:
         x1, x2 = x2, x1
@@ -20,7 +20,7 @@ def draw_line(matrix, x1, y1, x2, y2):
     while x1 != x2 or y1 != y2:
         # draw the pixel at (x1, y1)
         if 0 <= x1 < len(matrix[0]) and 0 <= y1 < len(matrix):
-            matrix[y1][x1] = "█" * len(matrix[y1][x1])
+            matrix[y1][x1] = char * len(matrix[y1][x1])
 
         e2 = 2 * err
         if e2 > -dy:

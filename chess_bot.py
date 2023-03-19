@@ -16,11 +16,11 @@ sf = stockfish.Stockfish(
     path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
 
 _loop = False
-target_x = -192.3
-target_y = 192.3
+target_x = 192.3
+target_y = -192.3
 target_z = 0
-pos_x = -192.3
-pos_y = 192.3
+pos_x = 192.3
+pos_y = -192.3
 grabber_state = "closed"
 
 # stops the mainloop
@@ -58,12 +58,12 @@ def get_visuals(*_):
         board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
 
         # draw arm 1
-        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 90), settings["hardware"]["config"]["length-terminal-arm-1"])
-        updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y)
+        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
+        updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
         
         # draw arm 2
-        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 90), settings["hardware"]["config"]["length-terminal-arm-2"])
-        updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y)
+        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
+        updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
 
         return matrix_tools.matrix2string(updated_matrix)
 
@@ -152,8 +152,7 @@ def main(serial):
 
         # pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], 0.1)
 
-        joint1, joint2 = _get_servo_angles(
-            pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
 
-        serial.write(f'{{"data": {{"angle-joint1": {joint1}, "angle-joint2": {joint2}, "position-z": {target_z}}}}}\n'.encode())
+        serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90}, "angle-joint2": {joint2}, "position-z": {target_z}}}}}\n'.encode())
         time.sleep(0.1)
