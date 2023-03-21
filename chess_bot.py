@@ -24,27 +24,38 @@ pos_y = -192.3
 grabber_state = "closed"
 
 # stops the mainloop
-
-
 def stop():
     global _loop
     _loop = False
 
 # returns if the loop controlling the machine is running
-
-
 def get_status(*_):
     if _loop:
         return " 🟢 Connected"
     else:
         return " 🔴 Disconnected"
 
+# returns wdl stats in the form of a bar visual
+update_wdl_stats = True
+def get_stats_visual(*_):
+    global wdl_stats, update_wdl_stats
+
+    bar_height = 14
+
+    if update_wdl_stats:
+        wdl_stats = sf.get_wdl_stats()
+
+        white = '▓\n' * round(((wdl_stats[0] + (wdl_stats[1] / 2)) * bar_height) / 1000)
+        black = '░\n' * round(((wdl_stats[2] + (wdl_stats[1] / 2)) * bar_height) / 1000)
+
+        wdl_stats = f"B\n—\n{black}{white}—\nW"
+        update_wdl_stats = False
+    
+    return wdl_stats
+
+
 # returns board visuals
-
-
 def get_visuals(*_):
-
-    #TODO: fix the so many stupid bugs in this function
 
     # load settings file
     with open('settings.json') as json_file:

@@ -43,6 +43,7 @@ def _create_aliases():
 
     ptg.tim.define("!machine_status", chess_bot.get_status)
     ptg.tim.define("!machine_visuals", chess_bot.get_visuals)
+    ptg.tim.define("!machine_wdl_stats", chess_bot.get_stats_visual)
 
 
 # set default styles for different widget types
@@ -148,7 +149,11 @@ def toggle_connection(state):
 
     else:
         chess_bot.stop()
-        ser.close()
+
+        try:
+            ser.close()
+        except:
+            pass
 
 # creates an alert window prompting to save changes
 def save_prompt(page, save, _dosave=None):
@@ -370,11 +375,21 @@ def main(argv):
         ptg.Container(
             ptg.Container(
                 "",
-                ptg.Label("[app.label][/bold][!machine_visuals] [/!]",parent_align=0, padding=2)
+                ptg.Splitter(
+                    ptg.Container(
+                    ptg.Label("[app.label][/bold][!machine_visuals] [/!]", parent_align=0, padding=2),
+                    static_width=37,
+                    box="EMPTY"
+                    ),
+                    ptg.Container(
+                        ptg.Label("[app.label][/bold][!machine_wdl_stats] [/!]"),
+                        box="EMPTY"
+                    )
+                )
             ),
             ptg.Label("[app.label][!machine_status] [/!]", parent_align=0),
             box="EMPTY",
-            static_width=43
+            static_width=52
         ),
         title="Machine Status",
         is_static=True,
