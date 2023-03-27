@@ -1,3 +1,2 @@
 *.cpp linguist-detectable=false
 *.h linguist-detectable=false
-*ChatGPT-Chess-Robot/stockfish linguist-detectable=false
