@@ -1,15 +1,16 @@
 import sys
 import subprocess
 import json
-import serial
 import threading
 import chess_bot
 
 try:
     import pytermgui as ptg
+    import serial
 except:
-    subprocess.run(["pip", "install", "pytermgui"])
+    subprocess.run(["pip", "install", "pytermgui", "pyserial"])
     import pytermgui as ptg
+    import serial
 
 manager = ptg.WindowManager()
 

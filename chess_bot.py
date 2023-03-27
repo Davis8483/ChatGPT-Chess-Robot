@@ -1,19 +1,19 @@
 import subprocess
 import json
 import time
-import numpy
 import matrix_tools
 import os
 
 try:
     import stockfish
+    import numpy
 except:
-    subprocess.run(["pip", "install", "stockfish"])
+    subprocess.run(["pip", "install", "stockfish", "numpy"])
     import stockfish
+    import numpy
 
 # initialize stockfish chess engine
-sf = stockfish.Stockfish(
-    path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
+sf = stockfish.Stockfish(path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
 
 _loop = False
 target_x = 192.3
