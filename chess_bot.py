@@ -16,10 +16,10 @@ except:
 sf = stockfish.Stockfish(path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
 
 _loop = False
-target_x = 192.3
+target_x = -192.3
 target_y = -192.3
 target_z = 0
-pos_x = 192.3
+pos_x = -192.3
 pos_y = -192.3
 grabber_state = "closed"
 
@@ -88,8 +88,6 @@ def goto_position(x, y, z):
     target_x = x
     target_y = y
     target_z = z
-    pos_x = x
-    pos_y = y
 
 
 def set_grabber(state):
@@ -161,9 +159,9 @@ def main(serial):
         with open('settings.json') as json_file:
             settings = json.load(json_file)
 
-        # pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], 0.1)
+        pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], 0.05)
 
         joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
 
         serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90}, "angle-joint2": {joint2}, "position-z": {target_z}}}}}\n'.encode())
-        time.sleep(0.1)
+        time.sleep(0.05)

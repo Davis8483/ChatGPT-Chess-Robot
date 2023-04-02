@@ -6,8 +6,8 @@
   "hardware": {
     "serial-port": "COM4",
     "baud-rate": "1200",
-    "max-speed": 20,
-    "acceleration": 5,
+    "max-speed": 40,
+    "acceleration": 20,
     "config": {
       "length-arm-1": 192.3,
       "length-arm-2": 192.3,
