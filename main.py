@@ -275,17 +275,20 @@ def navigate_menu(page):
         )
 
     if page == "hardware_settings":
-        serial_port_input = ptg.InputField(value=settings["hardware"]["serial-port"], prompt="Serial Port: ")
-        baud_rate_input = ptg.InputField(value=settings["hardware"]["baud-rate"], prompt="Baud Rate: ")
+        serial_port_input = ptg.InputField(value=str(settings["hardware"]["serial-port"]), prompt="Serial Port: ")
+        baud_rate_input = ptg.InputField(value=str(settings["hardware"]["baud-rate"]), prompt="Baud Rate: ")
+
+        max_speed_input = ptg.InputField(value=str(settings["hardware"]["max-speed"]), prompt="Max Speed: ")
+        acceleration_input = ptg.InputField(value=str(settings["hardware"]["acceleration"]), prompt="Acceleration: ")
 
         joint_1_offset_slider = ptg.Slider()
-        joint_1_offset_slider.value = round((settings["hardware"]["offset-joint-1"] / 10) + 0.5, 1)
+        joint_1_offset_slider.value = round((int(settings["hardware"]["offset-joint-1"]) / 10) + 0.5, 1)
 
         joint_2_offset_slider = ptg.Slider()
-        joint_2_offset_slider.value = round((settings["hardware"]["offset-joint-2"] / 10) + 0.5, 1)
+        joint_2_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 10) + 0.5, 1)
 
         joint_3_offset_slider = ptg.Slider()
-        joint_3_offset_slider.value = round((settings["hardware"]["offset-joint-2"] / 10) + 0.5, 1)
+        joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 10) + 0.5, 1)
 
         menu = ptg.Window(
             "[app.title]Hardware Settings",
@@ -294,6 +297,13 @@ def navigate_menu(page):
                 serial_port_input,
                 "",
                 baud_rate_input,
+                relative_width=0.6
+            ),
+            "",
+            ptg.Container(
+                max_speed_input,
+                "",
+                acceleration_input,
                 relative_width=0.6
             ),
             "",
@@ -311,15 +321,14 @@ def navigate_menu(page):
                 joint_2_offset_slider,
                 "",
                 ptg.Splitter(
-                    ptg.Label("[app.label]Grabber Joint Offset:", parent_align=0),
+                    ptg.Label("[app.label]Grabber Offset:", parent_align=0),
                     ptg.Label("[!offset_joint3] [/!]°", parent_align=2)
                 ),
                 joint_3_offset_slider,
-                "",
                 relative_width=0.6
             ),
             "",
-            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": baud_rate_input.value, "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
+            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": baud_rate_input.value, "max-speed": max_speed_input.value, "acceleration": acceleration_input.value, "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
