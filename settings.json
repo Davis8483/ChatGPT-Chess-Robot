@@ -8,17 +8,15 @@
     "baud-rate": "1200",
     "max-speed": 40,
     "acceleration": 20,
+    "offset-joint-1": 0,
+    "offset-joint-2": 0,
+    "offset-joint-3": 0,
     "config": {
       "length-arm-1": 192.3,
       "length-arm-2": 192.3,
       "length-terminal-arm-1": 11,
-      "length-terminal-arm-2": 11,
-      "offset-joint-1": 0,
-      "offset-joint-2": 0,
-      "offset-grabber": 0
+      "length-terminal-arm-2": 11
     },
-    "board-positions": {
-      
-    }
+    "board-positions": {}
   }
 }

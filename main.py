@@ -34,14 +34,21 @@ def _create_aliases():
 
     ptg.tim.alias("app.slider.filled", "bold #36b6fd")
     ptg.tim.alias("app.slider.filled_selected", "bold #ffffff")
-
-    ptg.tim.define("!steps_z", lambda *_: str(z_steps()))
-    ptg.tim.define("!steps_xy", lambda *_: str(xy_steps()))
+    
+    # Jog Machine page
+    ptg.tim.define("!steps_z", lambda *_: str(get_steps(z_step_slider)))
+    ptg.tim.define("!steps_xy", lambda *_: str(get_steps(xy_step_slider)))
     ptg.tim.define("!pos_x", lambda *_: str(round(chess_bot.target_x, 1)))
     ptg.tim.define("!pos_y", lambda *_: str(round(chess_bot.target_y, 1)))
     ptg.tim.define("!pos_z", lambda *_: str(round(chess_bot.target_z, 1)))
     ptg.tim.define("!grabber_state", lambda *_: chess_bot.grabber_state)
 
+    # Machine Settings page
+    ptg.tim.define("!offset_joint1", lambda *_: str(get_joint_offset(joint_1_offset_slider)))
+    ptg.tim.define("!offset_joint2", lambda *_: str(get_joint_offset(joint_2_offset_slider)))
+    ptg.tim.define("!offset_joint3", lambda *_: str(get_joint_offset(joint_3_offset_slider)))
+
+    # Status sidebar
     ptg.tim.define("!machine_status", chess_bot.get_status)
     ptg.tim.define("!machine_visuals", chess_bot.get_visuals)
     ptg.tim.define("!machine_wdl_stats", chess_bot.get_stats_visual)
@@ -119,19 +126,15 @@ def _define_layout():
 
     return layout
 
-# returns how much the machine should be jogged by in the z direction
-def z_steps(*_):
-
-    slider = round(z_step_slider.value, 1)
-    steps = round(2 ** ((slider * 10) - 3), 1)
+# returns how much the machine should be jogged by in the x, y, or z direction based on slider input
+def get_steps(slider):
+    steps = round(2 ** ((slider.value * 10) - 3), 1)
     return steps
 
-# returns how much the machine should be jogged by in the xy direction
-def xy_steps(*_):
-
-    slider = round(xy_step_slider.value, 1)
-    steps = round(2 ** ((slider * 10) - 3), 1)
-    return steps
+# returns how much the joint should be offset by based on the slider input
+def get_joint_offset(slider):
+    offset = round((slider.value - 0.5) * 10)
+    return offset
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state):
@@ -156,6 +159,20 @@ def toggle_connection(state):
         except:
             pass
 
+# Used save_prompt() to merge save with settings
+def _merge_dicts(dict1, dict2):
+    """
+    Merge two dictionaries recursively without overwriting sub-dictionaries.
+    """
+    for key, value in dict2.items():
+        if isinstance(value, dict) and key in dict1:
+            _merge_dicts(dict1[key], value)
+        else:
+            dict1[key] = value
+
+    return dict1
+
+
 # creates an alert window prompting to save changes
 def save_prompt(page, save, _dosave=None):
     global save_menu, settings
@@ -172,7 +189,7 @@ def save_prompt(page, save, _dosave=None):
 
     elif _dosave:
         # update settings dictionary using the save dictionary
-        settings.update(save)
+        _merge_dicts(settings, save)
 
         # save settings to settings.json
         with open("settings.json", "w") as json_file:
@@ -195,7 +212,7 @@ def save_prompt(page, save, _dosave=None):
 
 # switches which menu page is displayed
 def navigate_menu(page):
-    global menu, settings
+    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider
 
     # close the old menu window if open
     try:
@@ -258,10 +275,17 @@ def navigate_menu(page):
         )
 
     if page == "hardware_settings":
-        serial_port_input = ptg.InputField(
-            value=settings["hardware"]["serial-port"], prompt="Serial Port: ")
-        baud_rate_input = ptg.InputField(
-            value=settings["hardware"]["baud-rate"], prompt="Baud Rate: ")
+        serial_port_input = ptg.InputField(value=settings["hardware"]["serial-port"], prompt="Serial Port: ")
+        baud_rate_input = ptg.InputField(value=settings["hardware"]["baud-rate"], prompt="Baud Rate: ")
+
+        joint_1_offset_slider = ptg.Slider()
+        joint_1_offset_slider.value = round((settings["hardware"]["offset-joint-1"] / 10) + 0.5, 1)
+
+        joint_2_offset_slider = ptg.Slider()
+        joint_2_offset_slider.value = round((settings["hardware"]["offset-joint-2"] / 10) + 0.5, 1)
+
+        joint_3_offset_slider = ptg.Slider()
+        joint_3_offset_slider.value = round((settings["hardware"]["offset-joint-2"] / 10) + 0.5, 1)
 
         menu = ptg.Window(
             "[app.title]Hardware Settings",
@@ -273,8 +297,29 @@ def navigate_menu(page):
                 relative_width=0.6
             ),
             "",
-            ["Back", lambda *_: save_prompt("settings", save={"hardware": {
-                "serial-port": serial_port_input.value, "baud-rate": baud_rate_input.value}})],
+            ptg.Container(
+                ptg.Splitter(
+                    ptg.Label("[app.label]Joint 1 Offset:", parent_align=0),
+                    ptg.Label("[!offset_joint1] [/!]°", parent_align=2)
+                ),
+                joint_1_offset_slider,
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Joint 2 Offset:", parent_align=0),
+                    ptg.Label("[!offset_joint2] [/!]°", parent_align=2)
+                ),
+                joint_2_offset_slider,
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Grabber Joint Offset:", parent_align=0),
+                    ptg.Label("[!offset_joint3] [/!]°", parent_align=2)
+                ),
+                joint_3_offset_slider,
+                "",
+                relative_width=0.6
+            ),
+            "",
+            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": baud_rate_input.value, "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -292,13 +337,13 @@ def navigate_menu(page):
                               parent_align=2)
                 ),
                 ptg.KeyboardButton("w ↑", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, (chess_bot.target_y + xy_steps()), chess_bot.target_z), bound="w"),
+                    chess_bot.target_x, (chess_bot.target_y + get_steps(xy_step_slider)), chess_bot.target_z), bound="w"),
                 ptg.KeyboardButton("a ←", lambda *_: chess_bot.goto_position(
-                    (chess_bot.target_x - xy_steps()), chess_bot.target_y, chess_bot.target_z), bound="a"),
+                    (chess_bot.target_x - get_steps(xy_step_slider)), chess_bot.target_y, chess_bot.target_z), bound="a"),
                 ptg.KeyboardButton("s ↓", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, (chess_bot.target_y - xy_steps()), chess_bot.target_z), bound="s"),
+                    chess_bot.target_x, (chess_bot.target_y - get_steps(xy_step_slider)), chess_bot.target_z), bound="s"),
                 ptg.KeyboardButton("d →", lambda *_: chess_bot.goto_position(
-                    (chess_bot.target_x + xy_steps()), chess_bot.target_y, chess_bot.target_z), bound="d"),
+                    (chess_bot.target_x + get_steps(xy_step_slider)), chess_bot.target_y, chess_bot.target_z), bound="d"),
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Step:", parent_align=0),
@@ -314,9 +359,9 @@ def navigate_menu(page):
                     ptg.Label("[!pos_z] [/!] mm", parent_align=2)
                 ),
                 ptg.KeyboardButton("e Up", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z + z_steps())), bound="e"),
+                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z + get_steps(z_step_slider))), bound="e"),
                 ptg.KeyboardButton("q Down", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z - z_steps())), bound="q"),
+                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z - get_steps(z_step_slider))), bound="q"),
                 ptg.Button(
                     "Home", lambda *_: chess_bot.goto_position(chess_bot.target_x, chess_bot.target_y, 0)),
                 "",

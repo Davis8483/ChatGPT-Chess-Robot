@@ -163,5 +163,5 @@ def main(serial):
 
         joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
 
-        serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90}, "angle-joint2": {joint2}, "position-z": {target_z}}}}}\n'.encode())
+        serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90 + settings["hardware"]["offset-joint-1"]}, "angle-joint2": {joint2 + settings["hardware"]["offset-joint-2"]}, "position-z": {target_z}}}}}\n'.encode())
         time.sleep(0.05)
