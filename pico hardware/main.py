@@ -23,7 +23,7 @@ data = {
   "position-z": 0,
   "angle-joint1": 90,
   "angle-joint2": 90,
-  "angle-grabber": 90
+  "angle-joint3": 90
 }
 
 current_z_pos = 0
