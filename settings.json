@@ -5,7 +5,7 @@
   },
   "hardware": {
     "serial-port": "COM4",
-    "baud-rate": "1200",
+    "baud-rate": 1200,
     "max-speed": 40,
     "acceleration": 20,
     "offset-joint-1": 0,
