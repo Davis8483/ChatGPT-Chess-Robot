@@ -288,7 +288,7 @@ def navigate_menu(page):
         joint_2_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 10) + 0.5, 1)
 
         joint_3_offset_slider = ptg.Slider()
-        joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 10) + 0.5, 1)
+        joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-3"]) / 10) + 0.5, 1)
 
         menu = ptg.Window(
             "[app.title]Hardware Settings",

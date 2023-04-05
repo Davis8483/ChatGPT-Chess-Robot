@@ -78,7 +78,7 @@ while True:
   # set servo positions
   joint1_servo.duty_u16(get_pwm(data["angle-joint1"]))
   joint2_servo.duty_u16(get_pwm(data["angle-joint2"]))
-  grabber_servo.duty_u16(get_pwm(data["angle-grabber"]))
+  grabber_servo.duty_u16(get_pwm(data["angle-joint3"]))
 
   # if current position is less than target position, go up
   if current_z_pos < (data["position-z"] - z_axis_tolerance) and (data["position-z"] != 0):

@@ -85,8 +85,16 @@ def get_visuals(*_):
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
     global target_x, target_y, target_z, pos_y, pos_x
-    target_x = x
-    target_y = y
+
+    # load settings file
+    with open('settings.json') as json_file:
+        settings = json.load(json_file)
+    
+    # keep withing radial constraints
+    if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["config"]["length-arm-1"] + settings["hardware"]["config"]["length-arm-2"]):
+        target_x = x
+        target_y = y
+
     target_z = z
 
 
