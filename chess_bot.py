@@ -4,13 +4,16 @@ import time
 import matrix_tools
 import os
 
+
 try:
     import stockfish
     import numpy
+    import serial
 except:
-    subprocess.run(["pip", "install", "stockfish", "numpy"])
+    subprocess.run(["pip", "install", "stockfish", "numpy", "pyserial"])
     import stockfish
     import numpy
+    import serial
 
 # initialize stockfish chess engine
 sf = stockfish.Stockfish(path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
@@ -178,3 +181,17 @@ def main(serial):
 
         serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90 + settings["hardware"]["offset-joint-1"]}, "angle-joint2": {joint2 + settings["hardware"]["offset-joint-2"]}, "angle-joint3": {joint3} "position-z": {target_z}}}}}\n'.encode())
         time.sleep(0.05)
+
+# code can be run from this file for debuging purposes
+if __name__ == "__main__":
+
+    # load settings file
+    with open('settings.json') as json_file:
+        settings = json.load(json_file)
+
+    try:
+        ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
+        main(ser)
+        
+    except:
+        print(f"Serial port [{settings['hardware']['serial-port']}] not connected or invalid...")
