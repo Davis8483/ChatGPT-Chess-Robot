@@ -16,7 +16,7 @@
       "length-arm-2": 192.3,
       "length-terminal-arm-1": 11,
       "length-terminal-arm-2": 11,
-      "grabber-closed-angle": 100,
+      "grabber-closed-angle": 95,
       "grabber-open-angle": 130
     },
     "board-positions": {}
