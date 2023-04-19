@@ -40,11 +40,21 @@ joint1_servo.freq(50)
 joint2_servo.freq(50)
 grabber_servo.freq(50)
 
-poller = uselect.poll()
-poller.register(sys.stdin, uselect.POLLIN)
+# haul effect sensor pin setup
+sensor_power_pins = [6, 7, 8, 9, 10, 11, 12, 13] # sensors 0 - 7 ascending
+sensor_data_pins = [16, 17, 18, 19, 20, 21, 22, 23] # sensors 0 - 7 ascending
 
+sensor = {}
+for index in range(8):
+  sensor[index]["power"] = machine.Pin(sensor_power_pins[index], machine.Pin.OUT)
+  sensor[index]["data"] = machine.Pin(sensor_data_pins[index], machine.Pin.IN, machine.Pin.PULL_UP)
+
+# converts an angle to a pwm signal for a 9g servo
 def get_pwm(angle: float):
   return int((angle * ((duty_max - duty_min) / max_degrees)) + duty_min)
+
+poller = uselect.poll()
+poller.register(sys.stdin, uselect.POLLIN)
 
 # mainloop
 while True:
@@ -100,7 +110,3 @@ while True:
   # target position is met, so stop moving
   else:
     z_axis_servo.duty_u16(0) # stop
-
-
-
-
