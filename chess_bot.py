@@ -179,7 +179,15 @@ def main(serial):
         elif grabber_state == "closed":
             joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
 
-        serial.write(f'{{"data": {{"angle-joint1": {joint1 - 90 + settings["hardware"]["offset-joint-1"]}, "angle-joint2": {joint2 + settings["hardware"]["offset-joint-2"]}, "angle-joint3": {joint3} "position-z": {target_z}}}}}\n'.encode())
+        # data to send to the chess board
+        data = {"data": {
+            "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
+            "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
+            "angle-joint3": joint3,
+            "position-z": target_z
+            }}
+
+        serial.write(f"{json.dump(data)}\n".encode())
         time.sleep(0.1)
 
 # code can be run from this file for debuging purposes
