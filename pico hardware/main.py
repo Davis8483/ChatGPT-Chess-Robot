@@ -85,7 +85,8 @@ while True:
           
           # save sensor data
           for column_index in letter_columns:
-            response["response"]["board"][f"row-{row_index + 1}"][f"column-{column_index}"] = sensor["data"][column_index].value()
+            # invert the data so sensor reads true when a piece is on it
+            response["response"]["board"][f"row-{row_index + 1}"][f"column-{column_index}"] = not sensor["data"][column_index].value()
 
           # we are done collecting sensor data, turn off row
           sensor["power"][row_index].off()
