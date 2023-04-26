@@ -3,6 +3,12 @@
     "api-key": "openai api key here",
     "prompt": "Pretend to be a british chess player"
   },
+  "stockfish": {
+    "binaries": [
+      "/stockfish/windows/stockfish-windows-2022-x86-64-avx2.exe",
+      "/stockfish/linux/stockfish-ubuntu-20.04-x86-64"
+    ]
+  },
   "hardware": {
     "serial-port": "COM4",
     "baud-rate": 1200,

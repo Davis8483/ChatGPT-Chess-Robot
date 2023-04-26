@@ -15,8 +15,25 @@ except:
     import numpy
     import serial
 
+# load settings file
+with open('settings.json') as json_file:
+    settings = json.load(json_file)
+
 # initialize stockfish chess engine
-sf = stockfish.Stockfish(path=fr"{os.path.dirname(os.path.abspath(__file__))}\stockfish\stockfish-windows-2022-x86-64-avx2.exe")
+binary_found = False
+for index in settings["stockfish"]["binaries"]:
+    try:
+        sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
+        binary_found = True
+        break # a working stockfish binary is found so we can stop testing candidates
+
+    except: pass
+
+if not binary_found:
+    #TODO: add error handling
+    print("unable to find stockfish binary...")
+    quit
+
 
 _loop = False
 target_x = -192.3
