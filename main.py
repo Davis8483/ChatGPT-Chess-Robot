@@ -5,12 +5,17 @@ import threading
 import chess_bot
 
 try:
+    import pyperclip
     import pytermgui as ptg
     import serial
+    import serial.tools.list_ports
 except:
-    subprocess.run(["pip", "install", "pytermgui", "pyserial"])
+    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip"])
+
+    import pyperclip
     import pytermgui as ptg
     import serial
+    import serial.tools.list_ports
 
 manager = ptg.WindowManager()
 
@@ -262,6 +267,8 @@ def navigate_menu(page):
             ptg.Container(
                 api_key_input,
                 "",
+                ptg.Button("Paste Key", lambda *_: api_key_input.insert_text(pyperclip.paste())),
+                "",
                 prompt_input,
                 relative_width=0.6
             ),
@@ -290,6 +297,13 @@ def navigate_menu(page):
         joint_3_offset_slider = ptg.Slider()
         joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-3"]) / 10) + 0.5, 1)
 
+        ports = ""
+        for port, desc, hwid in sorted(serial.tools.list_ports.comports()):
+            ports += f"\n[app.label]{port}:[/][app.text] {desc} [{hwid}]\n"
+    
+        if ports == "":
+            ports = "\nNone"
+
         menu = ptg.Window(
             "[app.title]Hardware Settings",
             "",
@@ -297,6 +311,13 @@ def navigate_menu(page):
                 serial_port_input,
                 "",
                 baud_rate_input,
+                "",
+                ptg.Collapsible(
+                    "Available Ports",
+                    ptg.Container(
+                    ports
+                    )
+                ),
                 relative_width=0.6
             ),
             "",
