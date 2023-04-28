@@ -84,7 +84,7 @@ def get_visuals(*_):
 stored_text = ""
 stored_buttons = ""
 # can be called in main.py to request a stored prompt, is called within this file to set that stored prompt
-def gui_prompt(text=None, buttons=[]):
+def gui_prompt(text="", buttons={}):
     global stored_text
     global stored_buttons
 
@@ -94,8 +94,8 @@ def gui_prompt(text=None, buttons=[]):
     prompt_buttons = stored_buttons
     stored_buttons = buttons
     
-    # we are saving a prompt to return the stored one
-    if (text is None) and (buttons is []):
+    # the stored prompt has been requested
+    if (text == "") and (buttons == {}):
         return prompt_text, prompt_buttons
 
 # used outside of this file to set the position that the mainloop should try to achieve
@@ -199,7 +199,7 @@ def main(serial):
     _loop = True
 
     #TODO: remove this later
-    gui_prompt("test prompt", {"Ok": None})
+    gui_prompt(("test prompt", ""), {"Ok": None})
 
     while _loop:
         # load settings file

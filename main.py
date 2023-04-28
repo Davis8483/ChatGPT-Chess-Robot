@@ -2,6 +2,7 @@ import subprocess
 import json
 import threading
 import chess_bot
+import time
 
 try:
     import pyperclip
@@ -198,8 +199,10 @@ def menu_prompt_loop():
     while True:
         text, buttons = chess_bot.gui_prompt()
 
-        if (text != None) and (buttons != {}):
+        if (text != "") and (buttons != {}):
             menu_prompt(text, buttons)
+
+        time.sleep(0.5)
 
 # Used by save_prompt() to merge save with settings
 def _merge_dicts(dict1: dict, dict2: dict):
