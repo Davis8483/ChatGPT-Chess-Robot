@@ -1,6 +1,5 @@
 import subprocess
 import json
-import threading
 import chess_bot
 import time
 
@@ -9,13 +8,15 @@ try:
     import pytermgui as ptg
     import serial
     import serial.tools.list_ports
+    import continuous_threading
 except:
-    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip"])
+    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading"])
 
     import pyperclip
     import pytermgui as ptg
     import serial
     import serial.tools.list_ports
+    import continuous_threading
 
 # define window manager
 window_manager = ptg.WindowManager()
@@ -55,7 +56,7 @@ def _create_aliases():
     ptg.tim.define("!offset_joint3", lambda *_: str(get_joint_offset(joint_3_offset_slider)))
 
     # Status sidebar
-    ptg.tim.define("!machine_status", chess_bot.get_status)
+    ptg.tim.define("!machine_status", get_status)
     ptg.tim.define("!machine_visuals", chess_bot.get_visuals)
     ptg.tim.define("!machine_wdl_stats", chess_bot.get_stats_visual)
 
@@ -142,27 +143,38 @@ def get_joint_offset(slider: float):
     offset = round((slider.value - 0.5) * 10)
     return offset
 
+# returns if the chess_bot.py thread loop is active
+def get_status(*_):
+    try:
+        if bot_mainloop.is_alive():
+            return " 🟢 Connected"
+        else:
+            return " 🔴 Disconnected"
+
+    except:
+        return " 🔴 Disconnected"
+
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state: str):
-
+    global bot_mainloop
+    
     if state == "Disconnect":
         try:
             ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
 
-            bot_mainloop = threading.Thread(target=chess_bot.main, args=(ser,))
+            bot_mainloop = continuous_threading.PeriodicThread(0.1, chess_bot.mainloop, args=(ser, 0.1,))
             bot_mainloop.start()
 
-        except Exception as e:
+        except:
             connect_toggle.toggle()
 
             # create an prompt notifying the user
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Ok": None})
 
     else:
-        chess_bot.stop()
-
         try:
             ser.close()
+            bot_mainloop.join()
         except:
             pass
 
@@ -171,11 +183,13 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
     global prompt_alert
 
     if _close:
-        try: 
-            prompt_alert.close(animate=False)
-            _function()
-        except:
-            pass
+        prompt_alert.close(animate=False)
+
+        if _function != None:
+            try: 
+                _function()
+            except:
+                menu_prompt(("[app.title]Error", "", "[app.label]Failed to execute menu prompt function..."), {"Ok": None})
 
     else:
         prompt = text
@@ -195,14 +209,13 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
         prompt_alert = window_manager.alert(*prompt)
 
 # runs in a seperate thread, checks to see if chess_bot.py has prompts available and then displays it
-def menu_prompt_loop():
-    while True:
-        text, buttons = chess_bot.gui_prompt()
-
-        if (text != "") and (buttons != {}):
+def get_prompts():
+    if not chess_bot.prompt_queue.empty():
+        try:
+            text, buttons = chess_bot.prompt_queue.get()
             menu_prompt(text, buttons)
-
-        time.sleep(0.5)
+        except:
+            menu_prompt(("[app.title]Error", "", "[app.label]Failed to create menu prompt..."), {"Ok": None})
 
 # Used by save_prompt() to merge save with settings
 def _merge_dicts(dict1: dict, dict2: dict):
@@ -517,7 +530,7 @@ def main():
     navigate_menu("main")
     
     # runs the prompt handling popup in a seperate thread
-    notification_thread = threading.Thread(target=menu_prompt_loop)
+    notification_thread = continuous_threading.PeriodicThread(0.5, get_prompts)
     notification_thread.start()
 
     window_manager.run()

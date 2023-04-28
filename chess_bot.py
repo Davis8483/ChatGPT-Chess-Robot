@@ -3,6 +3,7 @@ import json
 import time
 import matrix_tools
 import os
+import queue
 
 
 try:
@@ -15,7 +16,6 @@ except:
     import numpy
     import serial
 
-_loop = False
 target_x = -192.3
 target_y = -192.3
 target_z = 0
@@ -23,17 +23,10 @@ pos_x = -192.3
 pos_y = -192.3
 grabber_state = "closed"
 
-# stops the mainloop
-def stop():
-    global _loop
-    _loop = False
-
-# returns if the loop controlling the machine is running
-def get_status(*_):
-    if _loop:
-        return " 🟢 Connected"
-    else:
-        return " 🔴 Disconnected"
+# stores menu prompts to be handeled by the gui in main.py
+prompt_queue = queue.Queue()
+#TODO: remove this later
+prompt_queue.put((("test prompt", ""), {"Ok": None}))
 
 # returns wdl stats in the form of a bar visual
 update_wdl_stats = True
@@ -62,41 +55,19 @@ def get_visuals(*_):
         settings = json.load(json_file)
 
     joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
-
-    # if connected to the chess board display board with arm overlay
-    if _loop:
         
-        board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
+    board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
 
-        # draw arm 1
-        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
-        updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
-        
-        # draw arm 2
-        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
-        updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
-
-        return matrix_tools.matrix2string(updated_matrix)
-
-    else:
-        return (sf.get_board_visual())
-
-stored_text = ""
-stored_buttons = ""
-# can be called in main.py to request a stored prompt, is called within this file to set that stored prompt
-def gui_prompt(text="", buttons={}):
-    global stored_text
-    global stored_buttons
-
-    prompt_text = stored_text
-    stored_text = text
-
-    prompt_buttons = stored_buttons
-    stored_buttons = buttons
+    # draw arm 1
+    a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
+    updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
     
-    # the stored prompt has been requested
-    if (text == "") and (buttons == {}):
-        return prompt_text, prompt_buttons
+    # draw arm 2
+    a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
+    updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
+
+    return matrix_tools.matrix2string(updated_matrix)
+
 
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
@@ -191,40 +162,34 @@ def stockfish_init():
 
     if not binary_found:
         # binary not found, notify user and prompt them to quit
-        gui_prompt(text=("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), buttons={"Quit": quit})
+        prompt_queue.put((("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), {"Quit": quit}))
 
-# mainloop
-def main(serial):
-    global _loop, pos_x, pos_y, settings
-    _loop = True
+# ran as a continuous thread, controls the physical chess robot
+def mainloop(serial, loop_delay):
+    global pos_x, pos_y, settings
 
-    #TODO: remove this later
-    gui_prompt(("test prompt", ""), {"Ok": None})
+    # load settings file
+    with open('settings.json') as json_file:
+        settings = json.load(json_file)
 
-    while _loop:
-        # load settings file
-        with open('settings.json') as json_file:
-            settings = json.load(json_file)
+    pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], loop_delay)
 
-        pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], 0.05)
+    joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
 
-        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+    if grabber_state == "open":
+        joint3 = settings["hardware"]["config"]["grabber-open-angle"]
+    elif grabber_state == "closed":
+        joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
 
-        if grabber_state == "open":
-            joint3 = settings["hardware"]["config"]["grabber-open-angle"]
-        elif grabber_state == "closed":
-            joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
+    # data to send to the chess board
+    data = {"data": {
+        "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
+        "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
+        "angle-joint3": joint3,
+        "position-z": target_z
+        }}
 
-        # data to send to the chess board
-        data = {"data": {
-            "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
-            "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
-            "angle-joint3": joint3,
-            "position-z": target_z
-            }}
-
-        serial.write(f"{json.dumps(data)}\n".encode())
-        time.sleep(0.1)
+    serial.write(f"{json.dumps(data)}\n".encode())
 
 # code can be run from this file for debuging purposes
 if __name__ == "__main__":
