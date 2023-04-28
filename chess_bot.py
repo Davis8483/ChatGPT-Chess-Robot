@@ -15,26 +15,6 @@ except:
     import numpy
     import serial
 
-# load settings file
-with open('settings.json') as json_file:
-    settings = json.load(json_file)
-
-# initialize stockfish chess engine
-binary_found = False
-for index in settings["stockfish"]["binaries"]:
-    try:
-        sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
-        binary_found = True
-        break # a working stockfish binary is found so we can stop testing candidates
-
-    except: pass
-
-if not binary_found:
-    #TODO: add error handling
-    print("unable to find stockfish binary...")
-    quit
-
-
 _loop = False
 target_x = -192.3
 target_y = -192.3
@@ -101,6 +81,22 @@ def get_visuals(*_):
     else:
         return (sf.get_board_visual())
 
+stored_text = ""
+stored_buttons = ""
+# can be called in main.py to request a stored prompt, is called within this file to set that stored prompt
+def gui_prompt(text=None, buttons=[]):
+    global stored_text
+    global stored_buttons
+
+    prompt_text = stored_text
+    stored_text = text
+
+    prompt_buttons = stored_buttons
+    stored_buttons = buttons
+    
+    # we are saving a prompt to return the stored one
+    if (text is None) and (buttons is []):
+        return prompt_text, prompt_buttons
 
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
@@ -118,7 +114,7 @@ def goto_position(x, y, z):
     target_z = z
 
 
-def set_grabber(state):
+def set_grabber(state: str):
     global grabber_state
     grabber_state = state
 
@@ -141,8 +137,6 @@ def _get_servo_angles(x, y, a1, a2):
 
 
 current_speed = 0
-
-
 def _get_position(current_x, current_y, target_x, target_y, max_speed, acceleration, loop_delay):
     global current_speed
 
@@ -178,10 +172,35 @@ def _get_position(current_x, current_y, target_x, target_y, max_speed, accelerat
 
     return new_x, new_y
 
+def stockfish_init():
+    global sf
+    
+    # load settings file
+    with open('settings.json') as json_file:
+        settings = json.load(json_file)
+
+    # initialize stockfish chess engine
+    binary_found = False
+    for index in settings["stockfish"]["binaries"]:
+        try:
+            sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
+            binary_found = True
+            break # a working stockfish binary is found so we can stop testing candidates
+
+        except: pass
+
+    if not binary_found:
+        # binary not found, notify user and prompt them to quit
+        gui_prompt(text=("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), buttons={"Quit": quit})
+
 # mainloop
 def main(serial):
     global _loop, pos_x, pos_y, settings
     _loop = True
+
+    #TODO: remove this later
+    gui_prompt("test prompt", {"Ok": None})
+
     while _loop:
         # load settings file
         with open('settings.json') as json_file:
@@ -220,3 +239,6 @@ if __name__ == "__main__":
         
     except:
         print(f"Serial port [{settings['hardware']['serial-port']}] not connected or invalid...")
+
+# initialize stockfish
+stockfish_init()

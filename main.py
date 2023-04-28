@@ -1,4 +1,3 @@
-import sys
 import subprocess
 import json
 import threading
@@ -17,7 +16,8 @@ except:
     import serial
     import serial.tools.list_ports
 
-manager = ptg.WindowManager()
+# define window manager
+window_manager = ptg.WindowManager()
 
 # load settings file
 with open('settings.json') as json_file:
@@ -132,18 +132,17 @@ def _define_layout():
     return layout
 
 # returns how much the machine should be jogged by in the x, y, or z direction based on slider input
-def get_steps(slider):
+def get_steps(slider: float):
     steps = round(2 ** ((slider.value * 10) - 3), 1)
     return steps
 
 # returns how much the joint should be offset by based on the slider input
-def get_joint_offset(slider):
+def get_joint_offset(slider: float):
     offset = round((slider.value - 0.5) * 10)
     return offset
 
 # runs main function of chess bot after connecting to the board hardware
-def toggle_connection(state):
-    global ser
+def toggle_connection(state: str):
 
     if state == "Disconnect":
         try:
@@ -152,9 +151,11 @@ def toggle_connection(state):
             bot_mainloop = threading.Thread(target=chess_bot.main, args=(ser,))
             bot_mainloop.start()
 
-        except:
+        except Exception as e:
             connect_toggle.toggle()
-            # TODO: add error output somehow???
+
+            # create an prompt notifying the user
+            menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Ok": None})
 
     else:
         chess_bot.stop()
@@ -164,8 +165,44 @@ def toggle_connection(state):
         except:
             pass
 
-# Used save_prompt() to merge save with settings
-def _merge_dicts(dict1, dict2):
+# creates a custom alert menu
+def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
+    global prompt_alert
+
+    if _close:
+        try: 
+            prompt_alert.close(animate=False)
+            _function()
+        except:
+            pass
+
+    else:
+        prompt = text
+        
+        for index in buttons.keys():
+            if buttons[index] is None:
+                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True))
+
+            else:
+                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True, _function=index))
+
+            # add a button
+            prompt += ("" , new_button)
+
+        prompt += ("",)
+
+        prompt_alert = window_manager.alert(*prompt)
+
+# runs in a seperate thread, checks to see if chess_bot.py has prompts available and then displays it
+def menu_prompt_loop():
+    while True:
+        text, buttons = chess_bot.gui_prompt()
+
+        if (text != None) and (buttons != {}):
+            menu_prompt(text, buttons)
+
+# Used by save_prompt() to merge save with settings
+def _merge_dicts(dict1: dict, dict2: dict):
     """
     Merge two dictionaries recursively without overwriting sub-dictionaries.
     """
@@ -179,11 +216,11 @@ def _merge_dicts(dict1, dict2):
 
 
 # creates an alert window prompting to save changes
-def save_prompt(page, save, _dosave=None):
-    global save_menu, settings
+def save_prompt(page: str, save: dict, _dosave=None):
+    global save_alert, settings
 
     if _dosave == None:
-        save_menu = manager.alert(
+        save_alert = window_manager.alert(
             "[app.title]Save Changes?",
             "",
             ["Yes", lambda *_:save_prompt(page, save, _dosave=True)],
@@ -202,7 +239,7 @@ def save_prompt(page, save, _dosave=None):
 
         # close save prompt and navigate to specified window
         try:
-            save_menu.close(animate=False)
+            save_alert.close(animate=False)
         except:
             pass
         navigate_menu(page)
@@ -210,13 +247,13 @@ def save_prompt(page, save, _dosave=None):
     else:
         # close save prompt and navigate to specified window
         try:
-            save_menu.close(animate=False)
+            save_alert.close(animate=False)
         except:
             pass
         navigate_menu(page)
 
 # switches which menu page is displayed
-def navigate_menu(page):
+def navigate_menu(page: str,):
     global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider
 
     # close the old menu window if open
@@ -302,7 +339,7 @@ def navigate_menu(page):
             ports += f"\n[app.label]{port}:[/][app.text] {desc} [{hwid}]\n"
     
         if ports == "":
-            ports = "\nNone"
+            ports = "\nNone\n"
 
         menu = ptg.Window(
             "[app.title]Hardware Settings",
@@ -424,17 +461,16 @@ def navigate_menu(page):
             title="Menu » Jog Machine"
         )
 
-    manager.add(menu, assign="menu", animate=True)
+    window_manager.add(menu, assign="menu", animate=True)
 
-
-def main(argv):
-    """Runs the application."""
+# runs the gui
+def main():
 
     _create_aliases()
     _configure_widgets()
     _define_widgets()
 
-    manager.layout = _define_layout()
+    window_manager.layout = _define_layout()
     header = ptg.Window(
         "[app.header]♘ ♗ ♖ ♕ ♔  Chess Bot  ♚ ♛ ♜ ♝ ♞",
         box="EMPTY",
@@ -445,7 +481,7 @@ def main(argv):
     header.styles.fill = "app.header.fill"
 
     # Since header is the first defined slot, this will assign to the correct place
-    manager.add(header)
+    window_manager.add(header)
 
     status_sidebar = ptg.Window(
         ptg.Container(
@@ -472,13 +508,17 @@ def main(argv):
         is_noresize=True
     )
 
-    manager.add(status_sidebar, assign="status")
+    window_manager.add(status_sidebar, assign="status")
 
     # Menu
     navigate_menu("main")
+    
+    # runs the prompt handling popup in a seperate thread
+    notification_thread = threading.Thread(target=menu_prompt_loop)
+    notification_thread.start()
 
-    manager.run()
+    window_manager.run()
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
