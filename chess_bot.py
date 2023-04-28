@@ -223,7 +223,7 @@ def main(serial):
             "position-z": target_z
             }}
 
-        serial.write(f"{json.dump(data)}\n".encode())
+        serial.write(f"{json.dumps(data)}\n".encode())
         time.sleep(0.1)
 
 # code can be run from this file for debuging purposes
