@@ -136,8 +136,9 @@ def stockfish_init():
         prompt_queue.put((("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), {"Quit": quit}))
 
 # ran as a continuous thread, controls the physical chess robot
+data = {}
 def mainloop(serial):
-    global pos_x, pos_y, settings
+    global pos_x, pos_y, settings, data
 
     # load settings file
     with open('settings.json') as json_file:
@@ -150,6 +151,8 @@ def mainloop(serial):
     elif grabber_state == "closed":
         joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
 
+    prev_data = data
+
     # data to send to the chess board
     data = {"data": {
         "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
@@ -158,7 +161,9 @@ def mainloop(serial):
         "position-z": pos_z
         }}
 
-    serial.write(f"{json.dumps(data)}\n".encode())
+    # if new data is available, send it to the chess board
+    if data != prev_data:
+        serial.write(f"{json.dumps(data)}\n".encode())
 
 # initialize stockfish
 stockfish_init()
