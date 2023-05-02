@@ -156,7 +156,7 @@ def get_status(*_):
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state: str):
-    global bot_mainloop
+    global bot_mainloop, ser
     
     if state == "Disconnect":
         try:
@@ -173,8 +173,8 @@ def toggle_connection(state: str):
 
     else:
         try:
-            ser.close()
             bot_mainloop.join()
+            ser.close()
         except:
             pass
 
