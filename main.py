@@ -392,7 +392,7 @@ def navigate_menu(page: str,):
                 relative_width=0.6
             ),
             "",
-            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": int(baud_rate_input.value), "max-speed": int(max_speed_input.value), "acceleration": int(acceleration_input.value), "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
+            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": int(baud_rate_input.value), "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
