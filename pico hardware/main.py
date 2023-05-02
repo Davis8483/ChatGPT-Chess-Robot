@@ -46,7 +46,11 @@ grabber_servo.freq(50)
 sensor_power_pins = [6, 7, 8, 9, 10, 11, 12, 13] # sensor rows 1 - 8 ascending
 sensor_data_pins = [16, 17, 18, 19, 20, 21, 22, 23] # sensor columns a - h ascending
 
-sensor = {}
+sensor = {
+  "power": {},
+  "data": {}
+}
+
 for index in range(8):
   sensor["power"][index + 1] = machine.Pin(sensor_power_pins[index], machine.Pin.OUT)
   sensor["data"][letter_columns[index]] = machine.Pin(sensor_data_pins[index], machine.Pin.IN, machine.Pin.PULL_UP)
@@ -65,7 +69,7 @@ while True:
   if (sys.stdin, uselect.POLLIN) in poller.poll(loop_delay):   
 
     # sent back to the host device based on data recieved
-    response = {}
+    response = {"response": {}}
 
     # try loading serial data into json format
     try:
@@ -101,12 +105,12 @@ while True:
 
 
     # send response to host
-    sys.stdout.write(f"{json.dump(response)}\n")
+    sys.stdout.write(f"{json.dumps(response)}\n")
 
-    # set servo positions
-    joint1_servo.duty_u16(get_pwm(data["angle-joint1"]))
-    joint2_servo.duty_u16(get_pwm(data["angle-joint2"]))
-    grabber_servo.duty_u16(get_pwm(data["angle-joint3"]))
+  # set servo positions
+  joint1_servo.duty_u16(get_pwm(data["angle-joint1"]))
+  joint2_servo.duty_u16(get_pwm(data["angle-joint2"]))
+  grabber_servo.duty_u16(get_pwm(data["angle-joint3"]))
 
   # if current position is less than target position, go up
   if current_z_pos < (data["position-z"] - z_axis_tolerance) and (data["position-z"] != 0):

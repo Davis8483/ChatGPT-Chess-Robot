@@ -16,9 +16,7 @@ except:
     import numpy
     import serial
 
-target_x = -192.3
-target_y = -192.3
-target_z = 0
+pos_z = 0
 pos_x = -192.3
 pos_y = -192.3
 grabber_state = "closed"
@@ -71,7 +69,7 @@ def get_visuals(*_):
 
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
-    global target_x, target_y, target_z, pos_y, pos_x
+    global pos_y, pos_x, pos_z
 
     # load settings file
     with open('settings.json') as json_file:
@@ -79,10 +77,10 @@ def goto_position(x, y, z):
     
     # keep withing radial constraints
     if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["config"]["length-arm-1"] + settings["hardware"]["config"]["length-arm-2"]):
-        target_x = x
-        target_y = y
+        pos_x = x
+        pos_y = y
 
-    target_z = z
+    pos_z = z
 
 
 def set_grabber(state: str):
@@ -106,43 +104,7 @@ def _get_servo_angles(x, y, a1, a2):
 
     return theta_1, theta_2
 
-
-current_speed = 0
-def _get_position(current_x, current_y, target_x, target_y, max_speed, acceleration, loop_delay):
-    global current_speed
-
-    dx = target_x - current_x
-    dy = target_y - current_y
-    distance = numpy.sqrt(dx**2 + dy**2)
-
-    if distance <= acceleration:
-        # We're close enough to the target, just move directly to it
-        current_speed = 0
-        return target_x, target_y
-
-    # Calculate the unit vector towards the target
-    ux = dx / distance
-    uy = dy / distance
-
-    # Calculate distance to accelerate/de-accelerate
-    acceleration_distance = (current_speed ** 2 / (2 * acceleration)) / loop_delay
-
-    # We're not at the maximum speed yet, accelerate
-    if (distance > acceleration_distance) and (current_speed < max_speed):
-        # We're far from the target, accelerate
-        current_speed += acceleration * loop_delay
-    elif distance < acceleration_distance:
-        # We're close to the target, decelerate
-        current_speed -= acceleration * loop_delay
-
-    # Calculate the new position towards the target
-    delta_x = ux * current_speed
-    delta_y = uy * current_speed
-    new_x = current_x + delta_x
-    new_y = current_y + delta_y
-
-    return new_x, new_y
-
+# initialize the stockfish chess engine
 def stockfish_init():
     global sf
     
@@ -165,14 +127,12 @@ def stockfish_init():
         prompt_queue.put((("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), {"Quit": quit}))
 
 # ran as a continuous thread, controls the physical chess robot
-def mainloop(serial, loop_delay):
+def mainloop(serial):
     global pos_x, pos_y, settings
 
     # load settings file
     with open('settings.json') as json_file:
         settings = json.load(json_file)
-
-    pos_x, pos_y = _get_position(pos_x, pos_y, target_x, target_y, settings["hardware"]["max-speed"], settings["hardware"]["acceleration"], loop_delay)
 
     joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
 
@@ -186,24 +146,10 @@ def mainloop(serial, loop_delay):
         "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
         "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
         "angle-joint3": joint3,
-        "position-z": target_z
+        "position-z": pos_z
         }}
 
     serial.write(f"{json.dumps(data)}\n".encode())
-
-# code can be run from this file for debuging purposes
-if __name__ == "__main__":
-
-    # load settings file
-    with open('settings.json') as json_file:
-        settings = json.load(json_file)
-
-    try:
-        ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
-        main(ser)
-        
-    except:
-        print(f"Serial port [{settings['hardware']['serial-port']}] not connected or invalid...")
 
 # initialize stockfish
 stockfish_init()

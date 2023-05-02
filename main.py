@@ -45,9 +45,9 @@ def _create_aliases():
     # Jog Machine page
     ptg.tim.define("!steps_z", lambda *_: str(get_steps(z_step_slider)))
     ptg.tim.define("!steps_xy", lambda *_: str(get_steps(xy_step_slider)))
-    ptg.tim.define("!pos_x", lambda *_: str(round(chess_bot.target_x, 1)))
-    ptg.tim.define("!pos_y", lambda *_: str(round(chess_bot.target_y, 1)))
-    ptg.tim.define("!pos_z", lambda *_: str(round(chess_bot.target_z, 1)))
+    ptg.tim.define("!pos_x", lambda *_: str(round(chess_bot.pos_x, 1)))
+    ptg.tim.define("!pos_y", lambda *_: str(round(chess_bot.pos_y, 1)))
+    ptg.tim.define("!pos_z", lambda *_: str(round(chess_bot.pos_z, 1)))
     ptg.tim.define("!grabber_state", lambda *_: chess_bot.grabber_state)
 
     # Machine Settings page
@@ -162,7 +162,7 @@ def toggle_connection(state: str):
         try:
             ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
 
-            bot_mainloop = continuous_threading.PeriodicThread(0.1, chess_bot.mainloop, args=(ser, 0.1,))
+            bot_mainloop = continuous_threading.PeriodicThread(0.2, chess_bot.mainloop, args=(ser,))
             bot_mainloop.start()
 
         except:
@@ -338,9 +338,6 @@ def navigate_menu(page: str,):
         serial_port_input = ptg.InputField(value=str(settings["hardware"]["serial-port"]), prompt="Serial Port: ")
         baud_rate_input = ptg.InputField(value=str(settings["hardware"]["baud-rate"]), prompt="Baud Rate: ")
 
-        max_speed_input = ptg.InputField(value=str(settings["hardware"]["max-speed"]), prompt="Max Speed: ")
-        acceleration_input = ptg.InputField(value=str(settings["hardware"]["acceleration"]), prompt="Acceleration: ")
-
         joint_1_offset_slider = ptg.Slider()
         joint_1_offset_slider.value = round((int(settings["hardware"]["offset-joint-1"]) / 10) + 0.5, 1)
 
@@ -371,13 +368,6 @@ def navigate_menu(page: str,):
                     ports
                     )
                 ),
-                relative_width=0.6
-            ),
-            "",
-            ptg.Container(
-                max_speed_input,
-                "",
-                acceleration_input,
                 relative_width=0.6
             ),
             "",
@@ -420,13 +410,13 @@ def navigate_menu(page: str,):
                               parent_align=2)
                 ),
                 ptg.KeyboardButton("w ↑", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, (chess_bot.target_y + get_steps(xy_step_slider)), chess_bot.target_z), bound="w"),
+                    chess_bot.pos_x, (chess_bot.pos_y + get_steps(xy_step_slider)), chess_bot.pos_z), bound="w"),
                 ptg.KeyboardButton("a ←", lambda *_: chess_bot.goto_position(
-                    (chess_bot.target_x - get_steps(xy_step_slider)), chess_bot.target_y, chess_bot.target_z), bound="a"),
+                    (chess_bot.pos_x - get_steps(xy_step_slider)), chess_bot.pos_y, chess_bot.pos_z), bound="a"),
                 ptg.KeyboardButton("s ↓", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, (chess_bot.target_y - get_steps(xy_step_slider)), chess_bot.target_z), bound="s"),
+                    chess_bot.pos_x, (chess_bot.pos_y - get_steps(xy_step_slider)), chess_bot.pos_z), bound="s"),
                 ptg.KeyboardButton("d →", lambda *_: chess_bot.goto_position(
-                    (chess_bot.target_x + get_steps(xy_step_slider)), chess_bot.target_y, chess_bot.target_z), bound="d"),
+                    (chess_bot.pos_x + get_steps(xy_step_slider)), chess_bot.pos_y, chess_bot.pos_z), bound="d"),
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Step:", parent_align=0),
@@ -442,11 +432,11 @@ def navigate_menu(page: str,):
                     ptg.Label("[!pos_z] [/!] mm", parent_align=2)
                 ),
                 ptg.KeyboardButton("e Up", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z + get_steps(z_step_slider))), bound="e"),
+                    chess_bot.pos_x, chess_bot.pos_y, (chess_bot.pos_z + get_steps(z_step_slider))), bound="e"),
                 ptg.KeyboardButton("q Down", lambda *_: chess_bot.goto_position(
-                    chess_bot.target_x, chess_bot.target_y, (chess_bot.target_z - get_steps(z_step_slider))), bound="q"),
+                    chess_bot.pos_x, chess_bot.pos_y, (chess_bot.pos_z - get_steps(z_step_slider))), bound="q"),
                 ptg.Button(
-                    "Home", lambda *_: chess_bot.goto_position(chess_bot.target_x, chess_bot.target_y, 0)),
+                    "Home", lambda *_: chess_bot.goto_position(chess_bot.pos_x, chess_bot.pos_y, 0)),
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Step:", parent_align=0),
