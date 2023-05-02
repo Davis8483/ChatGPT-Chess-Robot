@@ -1,6 +1,7 @@
 import subprocess
 import json
 import chess_bot
+import webbrowser
 import time
 
 try:
@@ -320,7 +321,9 @@ def navigate_menu(page: str,):
             ptg.Container(
                 api_key_input,
                 "",
-                ptg.Button("Paste Key", lambda *_: api_key_input.insert_text(pyperclip.paste())),
+                ["Get Key", lambda *_: webbrowser.open_new_tab('https://platform.openai.com/account/api-keys')],
+                "",
+                ["Paste Key", lambda *_: api_key_input.insert_text(pyperclip.paste())],
                 "",
                 prompt_input,
                 relative_width=0.6
