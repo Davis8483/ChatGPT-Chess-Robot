@@ -23,49 +23,56 @@ grabber_state = "closed"
 
 # stores menu prompts to be handeled by the gui in main.py
 prompt_queue = queue.Queue()
-#TODO: remove this later
-prompt_queue.put((("test prompt", ""), {"Ok": None}))
 
 # returns wdl stats in the form of a bar visual
 update_wdl_stats = True
 def get_stats_visual(*_):
     global wdl_stats, update_wdl_stats
 
-    bar_height = 14
+    if stockfish_ready:
+       
+        bar_height = 14
 
-    if update_wdl_stats:
-        wdl_stats = sf.get_wdl_stats()
+        if update_wdl_stats:
+            wdl_stats = sf.get_wdl_stats()
 
-        white = '▓\n' * round(((wdl_stats[0] + (wdl_stats[1] / 2)) * bar_height) / 1000)
-        black = '░\n' * round(((wdl_stats[2] + (wdl_stats[1] / 2)) * bar_height) / 1000)
+            white = '▓\n' * round(((wdl_stats[0] + (wdl_stats[1] / 2)) * bar_height) / 1000)
+            black = '░\n' * round(((wdl_stats[2] + (wdl_stats[1] / 2)) * bar_height) / 1000)
 
-        wdl_stats = f"B\n—\n{black}{white}—\nW"
-        update_wdl_stats = False
-    
-    return wdl_stats
+            wdl_stats = f"B\n—\n{black}{white}—\nW"
+            update_wdl_stats = False
+        
+        return wdl_stats
 
+    else:
+        return ""
 
 # returns board visuals
 def get_visuals(*_):
-
-    # load settings file
-    with open('settings.json') as json_file:
-        settings = json.load(json_file)
-
-    joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
-        
-    board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
-
-    # draw arm 1
-    a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
-    updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
     
-    # draw arm 2
-    a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
-    updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
+    # check if stockfish engine is ready
+    if stockfish_ready:
 
-    return matrix_tools.matrix2string(updated_matrix)
+        # load settings file
+        with open('settings.json') as json_file:
+            settings = json.load(json_file)
 
+        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+            
+        board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
+
+        # draw arm 1
+        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
+        updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
+        
+        # draw arm 2
+        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
+        updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
+
+        return matrix_tools.matrix2string(updated_matrix)
+
+    else:
+        return ""
 
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
@@ -105,8 +112,9 @@ def _get_servo_angles(x, y, a1, a2):
     return theta_1, theta_2
 
 # initialize the stockfish chess engine
+stockfish_ready = False
 def stockfish_init():
-    global sf
+    global sf, stockfish_ready
     
     # load settings file
     with open('settings.json') as json_file:
@@ -118,6 +126,7 @@ def stockfish_init():
         try:
             sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
             binary_found = True
+            stockfish_ready = True
             break # a working stockfish binary is found so we can stop testing candidates
 
         except: pass

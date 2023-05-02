@@ -188,8 +188,8 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
         if _function != None:
             try: 
                 _function()
-            except:
-                menu_prompt(("[app.title]Error", "", "[app.label]Failed to execute menu prompt function..."), {"Ok": None})
+            except Exception as e:
+                menu_prompt(("[app.title]Error", "", f"[app.label]Failed to execute menu prompt function, [{e}]"), {"Ok": None})
 
     else:
         prompt = text
@@ -199,7 +199,7 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
                 new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True))
 
             else:
-                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True, _function=index))
+                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True, _function=buttons[index]))
 
             # add a button
             prompt += ("" , new_button)
