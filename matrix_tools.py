@@ -26,7 +26,7 @@ def draw_line(matrix, x1, y1, x2, y2, char):
 
     while x1 != x2 or y1 != y2:
         # draw the pixel at (x1, y1)
-        if 0 <= x1 < len(matrix[0]) and 0 <= y1 < len(matrix):
+        if 0 <= y1 < len(matrix) and 0 <= x1 < len(matrix[y1]):
             matrix[y1][x1] = char * len(matrix[y1][x1])
 
         e2 = 2 * err
@@ -55,14 +55,18 @@ def calculate_end_coordinates(start_x, start_y, angle, length):
     
     return round(end_x), round(end_y)
 
-# takes in a string and outputs a list matrix
 def string2matrix(string, item_size):
-    # Split the string into rows, and remove any empty rows
-    rows = [row for row in string.split('\n') if row.strip()]
-
-    # Split each row into items of the specified size
-    matrix = [[row[i:i+item_size] for i in range(0, len(row), item_size)] for row in rows]
-
+    # split the string into rows
+    rows = string.split('\n')
+    matrix = []
+    # split each row into items of the specified size
+    for row in rows:
+        matrix_row = []
+        for item_index in range(0, len(row), item_size):
+            item = row[item_index:item_index+item_size]
+            matrix_row.append(item)
+        matrix.append(matrix_row)
+        
     return matrix
 
 def matrix2string(matrix):
