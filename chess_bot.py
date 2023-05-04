@@ -16,9 +16,13 @@ except:
     import numpy
     import serial
 
+# load settings file
+with open('settings.json') as json_file:
+    settings = json.load(json_file)
+
 pos_z = 0
-pos_x = -192.3
-pos_y = -192.3
+pos_x = -settings["hardware"]["config"]["length-arm-1"]
+pos_y = -settings["hardware"]["config"]["length-arm-2"]
 grabber_state = "closed"
 
 # stores menu prompts to be handeled by the gui in main.py
