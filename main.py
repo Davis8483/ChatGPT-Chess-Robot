@@ -303,6 +303,8 @@ def navigate_menu(page: str,):
             "",
             ["Hardware", lambda *_: navigate_menu("hardware_settings")],
             "",
+            ["Open File", lambda *_: webbrowser.open("settings.json")],
+            "",
             ["Back", lambda *_: navigate_menu("main")],
             is_static=True,
             is_noresize=True,
