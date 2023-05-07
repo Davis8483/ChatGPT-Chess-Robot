@@ -218,7 +218,7 @@ def get_prompts():
         except:
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to create menu prompt..."), {"Ok": None})
 
-# Used by save_prompt() to merge save with settings
+# merges dictionaries without overwriting sub directories
 def _merge_dicts(dict1: dict, dict2: dict):
     """
     Merge two dictionaries recursively without overwriting sub-dictionaries.

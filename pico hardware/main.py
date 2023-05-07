@@ -3,6 +3,8 @@ import sys
 import json
 import time
 import uselect
+from pi_pico_neopixel.neopixel import Neopixel
+import led_tools
 
 # ---------- Config Start ----------
 # servo
@@ -14,6 +16,10 @@ max_degrees = 180
 z_axis_speed = 35.3 # mm/s
 z_axis_tolerance = 2 # ±mm
 
+# led strips
+strip_length1 = 8
+strip_length2 = 8
+
 # mainloop
 loop_delay = 50 # milliseconds
 # ---------- Config End ----------
@@ -23,7 +29,17 @@ data = {
   "position-z": 0,
   "angle-joint1": 90,
   "angle-joint2": 90,
-  "angle-joint3": 90
+  "angle-joint3": 90,
+
+  "leds": {
+    "effect": "glow",
+    "intensity": 150,
+    "speed": 100,
+    "pallet": {
+      "1": [55, 0, 0],
+      "2": [0, 0, 0]
+    }
+  }
 }
 
 letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
@@ -55,14 +71,32 @@ for index in range(8):
   sensor["power"][index + 1] = machine.Pin(sensor_power_pins[index], machine.Pin.OUT)
   sensor["data"][letter_columns[index]] = machine.Pin(sensor_data_pins[index], machine.Pin.IN, machine.Pin.PULL_UP)
 
+# led strip pin setup
+led_strip1 = Neopixel(strip_length1, 0, pin=14, mode="GRB")
+led_strip2 = Neopixel(strip_length2, 1, pin=15, mode="GRB")
+
+led_effects = led_tools.effects(strip_length1 + strip_length2)
+
 # converts an angle to a pwm signal for a 9g servo
 def get_pwm(angle: float):
-  return int((angle * ((duty_max - duty_min) / max_degrees)) + duty_min)
+  return int((int(angle) * ((duty_max - duty_min) / max_degrees)) + duty_min)
+
+# merges dictionaries without overwriting sub directories
+def merge_dicts(dict1: dict, dict2: dict):
+  for key, value in dict2.items():
+    if isinstance(value, dict) and key in dict1:
+      merge_dicts(dict1[key], value)
+    else:
+      dict1[key] = value
+
+  return dict1
+
 
 poller = uselect.poll()
 poller.register(sys.stdin, uselect.POLLIN)
 
 # mainloop
+effect_index = 0
 while True:
 
   # check if serial data is available
@@ -77,24 +111,35 @@ while True:
 
       # update data dictionary to push updates to servos
       if "data" in serial.keys():
-        data.update(serial["data"])
+        merge_dicts(data, serial["data"])
       
       # return board sensor readings to the host
-      if ("return" in serial.keys()) and (serial["return"] == "board"):
-
-        # rows
-        for row_index in range(8):
-          # turn on sensor row
-          sensor["power"][row_index].on()
-          
-          # save sensor data
-          for column_index in letter_columns:
-            # invert the data so sensor reads true when a piece is on it
-            response["response"]["board"][f"row-{row_index + 1}"][f"column-{column_index}"] = not sensor["data"][column_index].value()
-
-          # we are done collecting sensor data, turn off row
-          sensor["power"][row_index].off()
+      if "return" in serial.keys():
       
+        if serial["return"] == "board":
+          
+          # create the board directory
+          response["response"]["board"] = {}
+
+          # rows
+          for row_index in range(8):
+            # turn on sensor row
+            sensor["power"][row_index].on()
+
+            # create a row directory
+            response["response"]["board"][f"row-{row_index + 1}"] = {}
+            
+            # save sensor data
+            for column_index in letter_columns:
+              # invert the data so sensor reads true when a piece is on it
+              response["response"]["board"][f"row-{row_index + 1}"][f"column-{column_index}"] = not sensor["data"][column_index].value()
+
+            # we are done collecting sensor data, turn off row
+            sensor["power"][row_index].off()
+
+        elif serial["return"] == "fx list":
+          response["response"]["fx list"] = list(led_effects.fx_list.keys())
+
       # return "ok" to host
       else:
         response["response"] = "ok"
@@ -113,7 +158,7 @@ while True:
   grabber_servo.duty_u16(get_pwm(data["angle-joint3"]))
 
   # if current position is less than target position, go up
-  if current_z_pos < (data["position-z"] - z_axis_tolerance) and (data["position-z"] != 0):
+  if current_z_pos < (float(data["position-z"]) - z_axis_tolerance) and (float(data["position-z"]) != 0):
     z_axis_servo.duty_u16(get_pwm(83)) # go up
 
     current_z_pos += z_axis_speed * (loop_delay / 1000)
@@ -124,7 +169,7 @@ while True:
     current_z_pos = 0
 
   # go down until target position is reached or limit switch is triggered. If target position is set to 0 go down regardless to home.
-  elif (current_z_pos > (data["position-z"] + z_axis_tolerance)) or (data["position-z"] == 0):
+  elif (current_z_pos > (float(data["position-z"]) + z_axis_tolerance)) or (float(data["position-z"]) == 0):
     z_axis_servo.duty_u16(get_pwm(97)) # go down
 
     current_z_pos -= z_axis_speed * (loop_delay / 1000)
@@ -132,3 +177,30 @@ while True:
   # target position is met, so stop moving
   else:
     z_axis_servo.duty_u16(0) # stop
+  
+  # calculate the step size based on loop_delay and data["leds"]["speed"]
+  step_size = (loop_delay / 1000) * ((int(data["leds"]["speed"]) % 256 + 1) / 255)
+
+  # iterate the led effect index
+  effect_index += step_size
+  if effect_index > 1: 
+    effect_index = 0
+
+  # update effects pallet
+  for key in data["leds"]["pallet"].keys():
+    if key.isdigit():
+      led_effects.pallet[int(key)] = data["leds"]["pallet"][key]
+  
+  # update the led strip
+  if data["leds"]["effect"] in led_effects.fx_list:
+
+    strip_update = led_effects.fx_list[data["leds"]["effect"]](led_effects, effect_index, (int(data["leds"]["intensity"]) % 256))
+
+    for index in range(strip_length1):
+      led_strip1.set_pixel(index, strip_update[index])
+
+    for index in range(strip_length2):
+      led_strip2.set_pixel(index, strip_update[strip_length1 + index])
+
+    led_strip1.show()
+    led_strip2.show()
