@@ -170,7 +170,7 @@ def toggle_connection(state: str):
             connect_toggle.toggle()
 
             # create an prompt notifying the user
-            menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Ok": None})
+            menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Edit": (lambda *_: navigate_menu("hardware_settings")), "Ok": None})
 
     else:
         try:
@@ -180,34 +180,42 @@ def toggle_connection(state: str):
             pass
 
 # creates a custom alert menu
+# example call: menu_prompt(("[app.title]Test Prompt", ""), {"Ok": my_function})
 def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
     global prompt_alert
 
     if _close:
         prompt_alert.close(animate=False)
 
-        if _function != None:
+        if _function is not None:
             try: 
                 _function()
             except Exception as e:
-                menu_prompt(("[app.title]Error", "", f"[app.label]Failed to execute menu prompt function, [{e}]"), {"Ok": None})
+                menu_prompt(
+                    ("[app.title]Error", "", "[app.label]Failed to execute menu prompt function,", f"[app.label][{e}]"), 
+                    {"Ok": None}
+                )
+        return
 
-    else:
-        prompt = text
-        
-        for index in buttons.keys():
-            if buttons[index] is None:
-                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True))
+    prompt = text
 
-            else:
-                new_button = ptg.Button(index, lambda *_: menu_prompt(text, buttons, _close=True, _function=buttons[index]))
+    for index in buttons.keys():
+        if buttons[index] is None:
+            new_button = ptg.Button(
+                index,
+                lambda *_: menu_prompt(text, buttons, _close=True)
+            )
+        else:
+            new_button = ptg.Button(
+                index,
+                lambda *_, f=buttons[index], b=buttons: menu_prompt(text, buttons, _close=True, _function=f)
+            )
 
-            # add a button
-            prompt += ("" , new_button)
+        prompt += ("", new_button)
 
-        prompt += ("",)
+    prompt += ("",)
+    prompt_alert = window_manager.alert(*prompt)
 
-        prompt_alert = window_manager.alert(*prompt)
 
 # runs in a seperate thread, checks to see if chess_bot.py has prompts available and then displays it
 def get_prompts():
@@ -405,6 +413,22 @@ def navigate_menu(page: str,):
         )
 
     if page == "jog":
+        
+        # check to see if the hardware is connected
+        try:
+            if bot_mainloop.is_alive():
+                pass
+
+            else:
+                navigate_menu("main")
+                menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+                return
+            
+        except:
+            navigate_menu("main")
+            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+            return
+
         menu = ptg.Window(
             "[app.title]Jog Machine",
             "",
@@ -472,6 +496,7 @@ def navigate_menu(page: str,):
             title="Menu » Jog Machine"
         )
 
+    # now open the new window
     window_manager.add(menu, assign="menu", animate=True)
 
 # runs the gui
