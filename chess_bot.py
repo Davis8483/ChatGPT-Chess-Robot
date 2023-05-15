@@ -125,17 +125,15 @@ def stockfish_init():
         settings = json.load(json_file)
 
     # initialize stockfish chess engine
-    binary_found = False
     for index in settings["stockfish"]["binaries"]:
         try:
             sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
-            binary_found = True
             stockfish_ready = True
             break # a working stockfish binary is found so we can stop testing candidates
 
         except: pass
 
-    if not binary_found:
+    if not stockfish_ready:
         # binary not found, notify user and prompt them to quit
         prompt_queue.put((("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), {"Quit": quit}))
 
