@@ -5,8 +5,8 @@
   },
   "stockfish": {
     "binaries": [
-      "/stockfish/windows/stockfish-windows-2022-x86-64-avx2.exe",
-      "/stockfish/linux/stockfish-ubuntu-20.04-x86-64"
+      "/stockfish binaries/windows/stockfish-windows-2022-x86-64-avx2.exe",
+      "/stockfish binaries/linux/stockfish-ubuntu-20.04-x86-64"
     ]
   },
   "hardware": {
@@ -20,7 +20,7 @@
       "length-arm-2": 192.3,
       "length-terminal-arm-1": 11,
       "length-terminal-arm-2": 11,
-      "grabber-closed-angle": 95,
+      "grabber-closed-angle": 80,
       "grabber-open-angle": 130
     },
     "board-positions": {}
