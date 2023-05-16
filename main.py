@@ -10,7 +10,7 @@ try:
     import serial
     import serial.tools.list_ports
     import continuous_threading
-except ImportError:
+except:
     subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading"])
 
     import pyperclip
@@ -152,7 +152,7 @@ def get_status(*_):
         else:
             return " 🔴 Disconnected"
 
-    except NameError:
+    except:
         return " 🔴 Disconnected"
 
 # runs main function of chess bot after connecting to the board hardware
@@ -174,9 +174,9 @@ def toggle_connection(state: str):
 
     else:
         try:
-            bot_mainloop.close()
+            bot_mainloop.join()
             ser.close()
-        except NameError:
+        except:
             pass
 
 # creates a custom alert menu
@@ -289,7 +289,7 @@ def save_prompt(page: str, save: dict, _dosave=None):
         # close save prompt and navigate to specified window
         try:
             save_alert.close(animate=False)
-        except NameError:
+        except:
             pass
         navigate_menu(page)
 
@@ -297,7 +297,7 @@ def save_prompt(page: str, save: dict, _dosave=None):
         # close save prompt and navigate to specified window
         try:
             save_alert.close(animate=False)
-        except NameError:
+        except:
             pass
         navigate_menu(page)
 
@@ -308,7 +308,7 @@ def navigate_menu(page: str,):
     # close the old menu window if open
     try:
         menu.close(animate=False)
-    except NameError:
+    except:
         pass
 
     # open new widow based on preset
@@ -333,7 +333,7 @@ def navigate_menu(page: str,):
         menu = ptg.Window(
             "[app.title]Settings",
             "",
-            ["ChatGPT", lambda *_: navigate_menu("gpt_settings")],
+            ["GPT", lambda *_: navigate_menu("gpt_settings")],
             "",
             ["Hardware", lambda *_: navigate_menu("hardware_settings")],
             "",
@@ -352,7 +352,7 @@ def navigate_menu(page: str,):
         prompt_input = ptg.InputField(
             value=settings["gpt"]["prompt"], prompt="Prompt: ")
         menu = ptg.Window(
-            "[app.title]ChatGPT Settings",
+            "[app.title]GPT Settings",
             "",
             ptg.Container(
                 api_key_input,
@@ -370,7 +370,7 @@ def navigate_menu(page: str,):
             is_static=True,
             is_noresize=True,
             vertical_align=0,
-            title="Menu » Settings » ChatGPT"
+            title="Menu » Settings » GPT"
         )
 
     if page == "hardware_settings":
@@ -420,7 +420,7 @@ def navigate_menu(page: str,):
                 menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
                 return
             
-        except NameError:
+        except:
             navigate_menu("main")
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
@@ -504,7 +504,7 @@ def navigate_menu(page: str,):
         #         menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
         #         return
             
-        # except NameError:
+        # except:
         #     navigate_menu("main")
         #     menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
         #     return
@@ -586,7 +586,7 @@ def navigate_menu(page: str,):
     else:
         try:
             joint_offset_thread.close()
-        except NameError:
+        except:
             pass
 
     # now open the new window
