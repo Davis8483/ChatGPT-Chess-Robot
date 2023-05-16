@@ -20,7 +20,7 @@ except ImportError:
     import continuous_threading
 
 # define window manager
-window_manager = ptg.WindowManager()
+window_manager = ptg.WindowManager(framerate=30)
 
 # load settings file
 with open('settings.json') as json_file:
@@ -141,13 +141,13 @@ def get_steps(slider: float):
 
 # returns how much the joint should be offset by based on the slider input
 def get_joint_offset(slider: float):
-    offset = round((slider.value - 0.5) * 10)
+    offset = round((slider.value - 0.5) * 20)
     return offset
 
 # returns if the chess_bot.py thread loop is active
 def get_status(*_):
     try:
-        if bot_mainloop.is_alive():
+        if bot_mainloop.is_running():
             return " 🟢 Connected"
         else:
             return " 🔴 Disconnected"
@@ -226,6 +226,30 @@ def get_prompts():
         except:
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to create menu prompt..."), {"Ok": None})
 
+# runs in a seperate thread, used by the gui to live update joint positions while editing
+prev_joint_offsets = {"hardware":{}}
+def update_joint_offset():
+    global prev_joint_offsets
+
+    joint_offsets = {
+        "hardware": {
+            "offset-joint-1": get_joint_offset(joint_1_offset_slider),
+            "offset-joint-2": get_joint_offset(joint_2_offset_slider),
+            "offset-joint-3": get_joint_offset(joint_3_offset_slider)
+            }}
+
+    # if changes are made save to settings file
+    if joint_offsets != prev_joint_offsets:
+        
+        _merge_dicts(settings, joint_offsets)
+
+        # save settings to settings.json
+        with open("settings.json", "w") as json_file:
+            json_file.write(json.dumps(settings, indent=2))
+
+    prev_joint_offsets = joint_offsets
+
+
 # merges dictionaries without overwriting sub directories
 def _merge_dicts(dict1: dict, dict2: dict):
     """
@@ -279,7 +303,7 @@ def save_prompt(page: str, save: dict, _dosave=None):
 
 # switches which menu page is displayed
 def navigate_menu(page: str,):
-    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider
+    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, joint_offset_thread
 
     # close the old menu window if open
     try:
@@ -293,6 +317,8 @@ def navigate_menu(page: str,):
             "[app.title]Menu",
             "",
             ["Settings", lambda *_: navigate_menu("settings")],
+            "",
+            ["Calibrate", lambda *_: navigate_menu("calibrate")],
             "",
             ["Jog Machine", lambda *_: navigate_menu("jog")],
             "",
@@ -351,15 +377,6 @@ def navigate_menu(page: str,):
         serial_port_input = ptg.InputField(value=str(settings["hardware"]["serial-port"]), prompt="Serial Port: ")
         baud_rate_input = ptg.InputField(value=str(settings["hardware"]["baud-rate"]), prompt="Baud Rate: ")
 
-        joint_1_offset_slider = ptg.Slider()
-        joint_1_offset_slider.value = round((int(settings["hardware"]["offset-joint-1"]) / 10) + 0.5, 1)
-
-        joint_2_offset_slider = ptg.Slider()
-        joint_2_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 10) + 0.5, 1)
-
-        joint_3_offset_slider = ptg.Slider()
-        joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-3"]) / 10) + 0.5, 1)
-
         ports = ""
         for port, desc, hwid in sorted(serial.tools.list_ports.comports()):
             ports += f"\n[app.label]{port}:[/][app.text] {desc} [{hwid}]\n"
@@ -384,28 +401,7 @@ def navigate_menu(page: str,):
                 relative_width=0.6
             ),
             "",
-            ptg.Container(
-                ptg.Splitter(
-                    ptg.Label("[app.label]Joint 1 Offset:", parent_align=0),
-                    ptg.Label("[!offset_joint1] [/!]°", parent_align=2)
-                ),
-                joint_1_offset_slider,
-                "",
-                ptg.Splitter(
-                    ptg.Label("[app.label]Joint 2 Offset:", parent_align=0),
-                    ptg.Label("[!offset_joint2] [/!]°", parent_align=2)
-                ),
-                joint_2_offset_slider,
-                "",
-                ptg.Splitter(
-                    ptg.Label("[app.label]Grabber Offset:", parent_align=0),
-                    ptg.Label("[!offset_joint3] [/!]°", parent_align=2)
-                ),
-                joint_3_offset_slider,
-                relative_width=0.6
-            ),
-            "",
-            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": int(baud_rate_input.value), "offset-joint-1": get_joint_offset(joint_1_offset_slider), "offset-joint-2": get_joint_offset(joint_2_offset_slider), "offset-joint-3": get_joint_offset(joint_3_offset_slider)}})],
+            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": int(baud_rate_input.value)}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -416,7 +412,7 @@ def navigate_menu(page: str,):
         
         # check to see if the hardware is connected
         try:
-            if bot_mainloop.is_alive():
+            if bot_mainloop.is_running():
                 pass
 
             else:
@@ -495,7 +491,6 @@ def navigate_menu(page: str,):
             horizontal_align=0,
             title="Menu » Jog Machine"
         )
-<<<<<<< HEAD
     
     if page == "calibrate":
 
@@ -593,8 +588,6 @@ def navigate_menu(page: str,):
             joint_offset_thread.close()
         except NameError:
             pass
-=======
->>>>>>> parent of 93e6a04 (Moved joint offset and added live updates.)
 
     # now open the new window
     window_manager.add(menu, assign="menu", animate=True)
