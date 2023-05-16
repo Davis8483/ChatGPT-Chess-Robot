@@ -174,7 +174,7 @@ def toggle_connection(state: str):
 
     else:
         try:
-            bot_mainloop.join()
+            bot_mainloop.close()
             ser.close()
         except:
             pass
