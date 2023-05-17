@@ -3,6 +3,7 @@ import json
 import chess_bot
 import webbrowser
 import time
+import sys
 
 try:
     import pyperclip
@@ -58,7 +59,7 @@ def _create_aliases():
 
     # Status sidebar
     ptg.tim.define("!machine_status", get_status)
-    ptg.tim.define("!machine_visuals", chess_bot.get_visuals)
+    ptg.tim.define("!machine_visuals", chess_bot.get_board_visual)
     ptg.tim.define("!machine_wdl_stats", chess_bot.get_stats_visual)
 
 
@@ -157,13 +158,15 @@ def get_status(*_):
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state: str):
-    global bot_mainloop, ser
+    global bot_mainloop, ser, serial_interface
     
     if state == "Disconnect":
         try:
             ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
 
-            bot_mainloop = continuous_threading.PeriodicThread(0.2, chess_bot.mainloop, args=(ser,))
+            serial_interface = chess_bot.SerialInterface(ser)
+
+            bot_mainloop = continuous_threading.PeriodicThread(0.2, serial_interface.mainloop, args=(ser,))
             bot_mainloop.start()
 
         except:
@@ -249,6 +252,34 @@ def update_joint_offset():
 
     prev_joint_offsets = joint_offsets
 
+# runs in a seperate thread, used to update the matrix on the sensor test page
+def update_sensor_matrix(matrix):
+    letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
+
+    print('hi')
+
+    try:
+        board = serial_interface.get_board()
+
+        # iterate through the entire board dictionary
+        for row in range(8):
+            for column in range(8):
+
+                # we are using 3x3 pixels as one square
+                for pixel in range(3):
+                    y, x = str(((row + 1) * 3) + (pixel + 1)), str(((column + 1) * 3) + (pixel + 1))
+
+                    if board[str(row + 1)][letter_columns[column]]:
+                        matrix[(row * 3), (column * 3)] = "green"
+                    else:
+                        matrix[(row * 3), (column * 3)] = "red"
+
+    except Exception as e:
+        menu_prompt(("[app.title]Error", "", f"[app.label]{e}"), {"Ok": None})
+        
+        # an error has occoured, close the thread
+        sys.exit()
+        
 
 # merges dictionaries without overwriting sub directories
 def _merge_dicts(dict1: dict, dict2: dict):
@@ -303,7 +334,7 @@ def save_prompt(page: str, save: dict, _dosave=None):
 
 # switches which menu page is displayed
 def navigate_menu(page: str,):
-    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, joint_offset_thread
+    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, joint_offset_thread, sensor_matrix_thread
 
     # close the old menu window if open
     try:
@@ -494,20 +525,20 @@ def navigate_menu(page: str,):
     
     if page == "calibrate":
 
-        # # check to see if the hardware is connected
-        # try:
-        #     if bot_mainloop.is_running():
-        #         pass
+        # check to see if the hardware is connected
+        try:
+            if bot_mainloop.is_running():
+                pass
 
-        #     else:
-        #         navigate_menu("main")
-        #         menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
-        #         return
+            else:
+                navigate_menu("main")
+                menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+                return
             
-        # except:
-        #     navigate_menu("main")
-        #     menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
-        #     return
+        except:
+            navigate_menu("main")
+            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+            return
 
         menu = ptg.Window(
             "[app.title]Calibrate",
@@ -525,8 +556,16 @@ def navigate_menu(page: str,):
         )
 
     if page == "sensor_test":
+
+        matrix = ptg.PixelMatrix(24, 24, default="red")
+
+        sensor_matrix_thread = continuous_threading.PeriodicThread(0.5, lambda *_: update_sensor_matrix(matrix))
+        sensor_matrix_thread.start()
+
         menu = ptg.Window(
             "[app.title]Sensor Test",
+            "",
+            matrix,
             "",
             ["Back", lambda *_: navigate_menu("calibrate")],
             is_static=True,
@@ -535,6 +574,12 @@ def navigate_menu(page: str,):
             horizontal_align=0,
             title="Menu » Calibrate » Sensor Test"
         )
+
+    else:
+        try:
+            sensor_matrix_thread.close()
+        except:
+            pass
 
     if page == "joint_offsets":
 

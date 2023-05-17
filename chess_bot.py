@@ -4,6 +4,7 @@ import time
 import matrix_tools
 import os
 import queue
+import random
 
 
 try:
@@ -52,7 +53,7 @@ def get_stats_visual(*_):
         return ""
 
 # returns board visuals
-def get_visuals(*_):
+def get_board_visual(*_):
     
     # check if stockfish engine is ready
     if stockfish_ready:
@@ -94,10 +95,6 @@ def goto_position(x, y, z):
     pos_z = z
 
 
-def set_grabber(state: str):
-    global grabber_state
-    grabber_state = state
-
 # inverse kinematics junk, source: https://github.com/aakieu/2-dof-planar/blob/master/python/inverse_kinematics.py
 def _get_servo_angles(x, y, a1, a2):
 
@@ -114,6 +111,10 @@ def _get_servo_angles(x, y, a1, a2):
     theta_2 = numpy.rad2deg(phi_3) + 180
 
     return theta_1, theta_2
+
+def set_grabber(state: str):
+    global grabber_state
+    grabber_state = state
 
 # initialize the stockfish chess engine
 stockfish_ready = False
@@ -137,35 +138,51 @@ def stockfish_init():
         # binary not found, notify user and prompt them to quit
         prompt_queue.put((("[app.title]Error", "", "[app.label]Stockfish engine binary not found..."), {"Quit": quit}))
 
-# ran as a continuous thread, controls the physical chess robot
-data = {}
-def mainloop(serial):
-    global pos_x, pos_y, settings, data
-
-    # load settings file
-    with open('settings.json') as json_file:
-        settings = json.load(json_file)
-
-    joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
-
-    if grabber_state == "open":
-        joint3 = settings["hardware"]["config"]["grabber-open-angle"]
-    elif grabber_state == "closed":
-        joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
-
-    prev_data = data
-
-    # data to send to the chess board
-    data = {"data": {
-        "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
-        "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
-        "angle-joint3": joint3,
-        "position-z": pos_z
-        }}
-
-    # if new data is available, send it to the chess board
-    if data != prev_data:
-        serial.write(f"{json.dumps(data)}\n".encode())
-
 # initialize stockfish
 stockfish_init()
+
+class SerialInterface():
+
+    def __init__(self, serial_class):
+        self.serial = serial_class
+
+    # returns board dictionary
+    def get_board(self):
+
+        # request board
+        self.serial.write('{"return": "board"}')
+
+        # save board dictionary
+        board = self.serial.readline()["response"]["board"]
+
+        return board
+
+    # ran as a continuous thread, controls the physical chess robot
+    data = {}
+    def mainloop(self):
+        global pos_x, pos_y, settings, data
+
+        # load settings file
+        with open('settings.json') as json_file:
+            settings = json.load(json_file)
+
+        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+
+        if grabber_state == "open":
+            joint3 = settings["hardware"]["config"]["grabber-open-angle"]
+        elif grabber_state == "closed":
+            joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
+
+        prev_data = data
+
+        # data to send to the chess board
+        data = {"data": {
+            "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
+            "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
+            "angle-joint3": joint3,
+            "position-z": pos_z
+            }}
+
+        # if new data is available, send it to the chess board
+        if data != prev_data:
+            self.serial.write(f"{json.dumps(data)}\n".encode())
