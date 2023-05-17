@@ -191,7 +191,7 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
         prompt_alert.close(animate=False)
 
         if _function is not None:
-            try: 
+            try:
                 _function()
             except Exception as e:
                 menu_prompt(
@@ -211,7 +211,7 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
         else:
             new_button = ptg.Button(
                 index,
-                lambda *_, f=buttons[index], b=buttons: menu_prompt(text, buttons, _close=True, _function=f)
+                lambda *_, f=buttons[index]: menu_prompt(text, buttons, _close=True, _function=f)
             )
 
         prompt += ("", new_button)
@@ -235,10 +235,10 @@ def update_joint_offset():
     global prev_joint_offsets
 
     joint_offsets = {
-        "hardware": {
-            "offset-joint-1": get_joint_offset(joint_1_offset_slider),
-            "offset-joint-2": get_joint_offset(joint_2_offset_slider),
-            "offset-joint-3": get_joint_offset(joint_3_offset_slider)
+        "joint-offsets": {
+            "1": get_joint_offset(joint_1_offset_slider),
+            "2": get_joint_offset(joint_2_offset_slider),
+            "3": get_joint_offset(joint_3_offset_slider)
             }}
 
     # if changes are made save to settings file
@@ -408,6 +408,12 @@ def navigate_menu(page: str,):
         serial_port_input = ptg.InputField(value=str(settings["hardware"]["serial-port"]), prompt="Serial Port: ")
         baud_rate_input = ptg.InputField(value=str(settings["hardware"]["baud-rate"]), prompt="Baud Rate: ")
 
+        arm1_length_input = ptg.InputField(value=str(settings["hardware"]["length-arm-1"]), prompt="Arm 1 Length (mm): ")
+        arm2_length_input = ptg.InputField(value=str(settings["hardware"]["length-arm-2"]), prompt="Arm 2 Length (mm): ")
+
+        grabber_open_input = ptg.InputField(value=str(settings["hardware"]["grabber-open-angle"]), prompt="Grabber Open Angle: ")
+        grabber_closed_input = ptg.InputField(value=str(settings["hardware"]["grabber-closed-angle"]), prompt="Grabber Closed Angle: ")
+
         ports = ""
         for port, desc, hwid in sorted(serial.tools.list_ports.comports()):
             ports += f"\n[app.label]{port}:[/][app.text] {desc} [{hwid}]\n"
@@ -432,7 +438,25 @@ def navigate_menu(page: str,):
                 relative_width=0.6
             ),
             "",
-            ["Back", lambda *_: save_prompt("settings", save={"hardware": {"serial-port": serial_port_input.value, "baud-rate": int(baud_rate_input.value)}})],
+            ptg.Container(
+                arm1_length_input,
+                "",
+                arm2_length_input,
+                "",
+                grabber_open_input,
+                "",
+                grabber_closed_input,
+                relative_width=0.6
+            ),
+            "",
+            ["Back", lambda *_: save_prompt("settings", save={"hardware": 
+                                                              {"serial-port": serial_port_input.value,
+                                                                "baud-rate": int(baud_rate_input.value),
+                                                                "length-arm-1": float(arm1_length_input.value),
+                                                                "length-arm-2": float(arm2_length_input.value),
+                                                                "grabber-open-angle": int(grabber_open_input.value),
+                                                                "grabber_closed_angle": int(grabber_closed_input.value)
+                                                                }})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -584,13 +608,13 @@ def navigate_menu(page: str,):
     if page == "joint_offsets":
 
         joint_1_offset_slider = ptg.Slider()
-        joint_1_offset_slider.value = round((int(settings["hardware"]["offset-joint-1"]) / 20) + 0.5, 1)
+        joint_1_offset_slider.value = round((int(settings["joint-offsets"]["1"]) / 20) + 0.5, 1)
 
         joint_2_offset_slider = ptg.Slider()
-        joint_2_offset_slider.value = round((int(settings["hardware"]["offset-joint-2"]) / 20) + 0.5, 1)
+        joint_2_offset_slider.value = round((int(settings["joint-offsets"]["2"]) / 20) + 0.5, 1)
 
         joint_3_offset_slider = ptg.Slider()
-        joint_3_offset_slider.value = round((int(settings["hardware"]["offset-joint-3"]) / 20) + 0.5, 1)
+        joint_3_offset_slider.value = round((int(settings["joint-offsets"]["3"]) / 20) + 0.5, 1)
 
 
         joint_offset_thread = continuous_threading.PeriodicThread(0.5, update_joint_offset)

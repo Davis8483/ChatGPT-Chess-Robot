@@ -22,8 +22,8 @@ with open('settings.json') as json_file:
     settings = json.load(json_file)
 
 pos_z = 0
-pos_x = -settings["hardware"]["config"]["length-arm-1"]
-pos_y = -settings["hardware"]["config"]["length-arm-2"]
+pos_x = -settings["hardware"]["length-arm-1"]
+pos_y = -settings["hardware"]["length-arm-2"]
 grabber_state = "closed"
 
 # stores menu prompts to be handeled by the gui in main.py
@@ -62,16 +62,16 @@ def get_board_visual(*_):
         with open('settings.json') as json_file:
             settings = json.load(json_file)
 
-        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
             
         board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
 
         # draw arm 1
-        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["hardware"]["config"]["length-terminal-arm-1"])
+        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["gui"]["length-terminal-arm-1"])
         updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
         
         # draw arm 2
-        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["hardware"]["config"]["length-terminal-arm-2"])
+        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["gui"]["length-terminal-arm-2"])
         updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
 
         return matrix_tools.matrix2string(updated_matrix)
@@ -88,7 +88,7 @@ def goto_position(x, y, z):
         settings = json.load(json_file)
     
     # keep withing radial constraints
-    if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["config"]["length-arm-1"] + settings["hardware"]["config"]["length-arm-2"]):
+    if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]):
         pos_x = x
         pos_y = y
 
@@ -166,19 +166,19 @@ class SerialInterface():
         with open('settings.json') as json_file:
             settings = json.load(json_file)
 
-        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["config"]["length-arm-1"], settings["hardware"]["config"]["length-arm-2"])
+        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
 
         if grabber_state == "open":
-            joint3 = settings["hardware"]["config"]["grabber-open-angle"]
+            joint3 = settings["hardware"]["grabber-open-angle"]
         elif grabber_state == "closed":
-            joint3 = settings["hardware"]["config"]["grabber-closed-angle"]
+            joint3 = settings["hardware"]["grabber-closed-angle"]
 
         prev_data = data
 
         # data to send to the chess board
         data = {"data": {
-            "angle-joint1": joint1 - 90 + settings["hardware"]["offset-joint-1"],
-            "angle-joint2": joint2 + settings["hardware"]["offset-joint-2"],
+            "angle-joint1": joint1 - 90 + settings["joint-offsets"]["1"],
+            "angle-joint2": joint2 + settings["joint-offsets"]["2"],
             "angle-joint3": joint3,
             "position-z": pos_z
             }}
