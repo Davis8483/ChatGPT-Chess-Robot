@@ -11,14 +11,17 @@ try:
     import serial
     import serial.tools.list_ports
     import continuous_threading
+    from safe_cast import *
+
 except:
-    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading"])
+    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
 
     import pyperclip
     import pytermgui as ptg
     import serial
     import serial.tools.list_ports
     import continuous_threading
+    from safe_cast import *
 
 # define window manager
 window_manager = ptg.WindowManager(framerate=30)
@@ -392,7 +395,7 @@ def navigate_menu(page: str,):
             ),
             "",
             ["Back", lambda *_: save_prompt("settings", save={
-                "gpt": {"api-key": api_key_input.value, "prompt": prompt_input.value}})],
+                "gpt": {"api-key": safe_str(api_key_input.value, ""), "prompt": safe_str(prompt_input.value, "")}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -445,12 +448,12 @@ def navigate_menu(page: str,):
             ),
             "",
             ["Back", lambda *_: save_prompt("settings", save={"hardware": 
-                                                              {"serial-port": serial_port_input.value,
-                                                                "baud-rate": int(baud_rate_input.value),
-                                                                "length-arm-1": float(arm1_length_input.value),
-                                                                "length-arm-2": float(arm2_length_input.value),
-                                                                "grabber-open-angle": int(grabber_open_input.value),
-                                                                "grabber_closed_angle": int(grabber_closed_input.value)
+                                                              {"serial-port": safe_str(serial_port_input.value, ""),
+                                                                "baud-rate": safe_int(baud_rate_input.value, 0),
+                                                                "length-arm-1": safe_float(arm1_length_input.value, 2, 0.0),
+                                                                "length-arm-2": safe_float(arm2_length_input.value, 2, 0.0),
+                                                                "grabber-open-angle": safe_int(grabber_open_input.value, 0),
+                                                                "grabber_closed_angle": safe_int(grabber_closed_input.value, 0)
                                                                 }})],
             is_static=True,
             is_noresize=True,
