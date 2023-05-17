@@ -336,15 +336,9 @@ def save_prompt(page: str, save: dict, _dosave=None):
 def navigate_menu(page: str,):
     global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, joint_offset_thread, sensor_matrix_thread
 
-    # close the old menu window if open
-    try:
-        menu.close(animate=False)
-    except:
-        pass
-
     # open new widow based on preset
     if page == "main":
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Menu",
             "",
             ["Settings", lambda *_: navigate_menu("settings")],
@@ -361,7 +355,7 @@ def navigate_menu(page: str,):
         )
 
     if page == "settings":
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Settings",
             "",
             ["GPT", lambda *_: navigate_menu("gpt_settings")],
@@ -382,7 +376,8 @@ def navigate_menu(page: str,):
             value=settings["gpt"]["api-key"], prompt="API key: ")
         prompt_input = ptg.InputField(
             value=settings["gpt"]["prompt"], prompt="Prompt: ")
-        menu = ptg.Window(
+
+        new_menu = ptg.Window(
             "[app.title]GPT Settings",
             "",
             ptg.Container(
@@ -421,7 +416,7 @@ def navigate_menu(page: str,):
         if ports == "":
             ports = "\nNone\n"
 
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Hardware Settings",
             "",
             ptg.Container(
@@ -471,16 +466,14 @@ def navigate_menu(page: str,):
                 pass
 
             else:
-                navigate_menu("main")
                 menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
                 return
             
         except:
-            navigate_menu("main")
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
 
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Jog Machine",
             "",
             ptg.Container(
@@ -555,16 +548,14 @@ def navigate_menu(page: str,):
                 pass
 
             else:
-                navigate_menu("main")
                 menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
                 return
             
         except:
-            navigate_menu("main")
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
 
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Calibrate",
             "",
             ["Sensor Test", lambda *_: navigate_menu("sensor_test")],
@@ -586,7 +577,7 @@ def navigate_menu(page: str,):
         sensor_matrix_thread = continuous_threading.PeriodicThread(0.5, lambda *_: update_sensor_matrix(matrix))
         sensor_matrix_thread.start()
 
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Sensor Test",
             "",
             matrix,
@@ -620,7 +611,7 @@ def navigate_menu(page: str,):
         joint_offset_thread = continuous_threading.PeriodicThread(0.5, update_joint_offset)
         joint_offset_thread.start()
 
-        menu = ptg.Window(
+        new_menu = ptg.Window(
             "[app.title]Joint Offsets",
             "",
             ptg.Container(
@@ -657,6 +648,14 @@ def navigate_menu(page: str,):
             joint_offset_thread.close()
         except:
             pass
+    
+    # close the old menu window if open
+    try:
+        menu.close(animate=False)
+    except:
+        pass
+
+    menu = new_menu
 
     # now open the new window
     window_manager.add(menu, assign="menu", animate=True)
