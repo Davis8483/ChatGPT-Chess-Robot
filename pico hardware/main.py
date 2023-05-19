@@ -60,7 +60,7 @@ grabber_servo.freq(50)
 
 # haul effect sensor pin setup
 sensor_power_pins = [6, 7, 8, 9, 10, 11, 12, 13] # sensor rows 1 - 8 ascending
-sensor_data_pins = [16, 17, 18, 19, 20, 21, 22, 23] # sensor columns a - h ascending
+sensor_data_pins = [16, 17, 18, 19, 20, 21, 22, 26] # sensor columns a - h ascending
 
 sensor = {
   "power": {},
@@ -68,8 +68,11 @@ sensor = {
 }
 
 for index in range(8):
-  sensor["power"][index + 1] = machine.Pin(sensor_power_pins[index], machine.Pin.OUT)
-  sensor["data"][letter_columns[index]] = machine.Pin(sensor_data_pins[index], machine.Pin.IN, machine.Pin.PULL_UP)
+  pin = machine.Pin(sensor_power_pins[index], machine.Pin.OUT)
+  sensor["power"][index + 1] = pin
+
+  pin = machine.Pin(sensor_data_pins[index], machine.Pin.IN, machine.Pin.PULL_UP)
+  sensor["data"][letter_columns[index]] = pin
 
 # led strip pin setup
 led_strip1 = Neopixel(strip_length1, 0, pin=14, mode="GRB")
@@ -124,21 +127,21 @@ while True:
           # rows
           for row_index in range(8):
             # turn on sensor row
-            sensor["power"][row_index].on()
+            sensor["power"][row_index + 1].on()
 
             # create a row directory
-            response["response"]["board"][f"row-{row_index + 1}"] = {}
-            
+            response["response"]["board"][str(row_index + 1)] = {}
+
             # save sensor data
             for column_index in letter_columns:
               # invert the data so sensor reads true when a piece is on it
-              response["response"]["board"][f"row-{row_index + 1}"][f"column-{column_index}"] = not sensor["data"][column_index].value()
+              response["response"]["board"][str(row_index + 1)][str(column_index)] = not bool(sensor["data"][column_index].value())
 
             # we are done collecting sensor data, turn off row
-            sensor["power"][row_index].off()
+            sensor["power"][row_index + 1].off()
 
-        elif serial["return"] == "fx list":
-          response["response"]["fx list"] = list(led_effects.fx_list.keys())
+        elif serial["return"] == "fx-list":
+          response["response"]["fx-list"] = list(led_effects.fx_list.keys())
 
       # return "ok" to host
       else:

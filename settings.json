@@ -11,7 +11,7 @@
   },
   "hardware": {
     "serial-port": "COM4",
-    "baud-rate": 1200,
+    "baud-rate": 9600,
     "length-arm-1": 192.3,
     "length-arm-2": 192.3,
     "grabber-closed-angle": 80,

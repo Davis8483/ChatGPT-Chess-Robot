@@ -10,12 +10,13 @@ import random
 try:
     import stockfish
     import numpy
-    import serial
+    from safe_cast import *
+
 except:
-    subprocess.run(["pip", "install", "stockfish", "numpy", "pyserial"])
+    subprocess.run(["pip", "install", "stockfish", "numpy", "safe-cast"])
     import stockfish
     import numpy
-    import serial
+    from safe_cast import *
 
 # load settings file
 with open('settings.json') as json_file:
@@ -145,20 +146,22 @@ class SerialInterface():
 
     def __init__(self, serial_class):
         self.serial = serial_class
+        self.data = {}
 
     # returns board dictionary
     def get_board(self):
 
         # request board
-        self.serial.write('{"return": "board"}')
+        self.serial.write('{"return":"board"}\n'.encode())
+
+        line = self.serial.read(self.serial.in_waiting).decode("utf-8")
 
         # save board dictionary
-        board = self.serial.readline()["response"]["board"]
+        board = json.loads(line)["response"]["board"]
 
         return board
 
     # ran as a continuous thread, controls the physical chess robot
-    data = {}
     def mainloop(self):
         global pos_x, pos_y, settings, data
 
@@ -173,7 +176,7 @@ class SerialInterface():
         elif grabber_state == "closed":
             joint3 = settings["hardware"]["grabber-closed-angle"]
 
-        prev_data = data
+        prev_data = self.data
 
         # data to send to the chess board
         data = {"data": {
@@ -184,5 +187,5 @@ class SerialInterface():
             }}
 
         # if new data is available, send it to the chess board
-        if data != prev_data:
+        if self.data != prev_data:
             self.serial.write(f"{json.dumps(data)}\n".encode())

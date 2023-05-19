@@ -169,7 +169,7 @@ def toggle_connection(state: str):
 
             serial_interface = chess_bot.SerialInterface(ser)
 
-            bot_mainloop = continuous_threading.PeriodicThread(0.2, serial_interface.mainloop, args=(ser,))
+            bot_mainloop = continuous_threading.PeriodicThread(0.2, serial_interface.mainloop)
             bot_mainloop.start()
 
         except:
@@ -259,8 +259,6 @@ def update_joint_offset():
 def update_sensor_matrix(matrix):
     letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
-    print('hi')
-
     try:
         board = serial_interface.get_board()
 
@@ -269,21 +267,22 @@ def update_sensor_matrix(matrix):
             for column in range(8):
 
                 # we are using 3x3 pixels as one square
-                for pixel in range(3):
-                    y, x = str(((row + 1) * 3) + (pixel + 1)), str(((column + 1) * 3) + (pixel + 1))
+                for i in range(3):
+                    for j in range(3):
+                        y = str((row * 3) + i)
+                        x = str((column * 3) + j)
 
-                    if board[str(row + 1)][letter_columns[column]]:
-                        matrix[(row * 3), (column * 3)] = "green"
-                    else:
-                        matrix[(row * 3), (column * 3)] = "red"
+                        if board[str(row + 1)][letter_columns[column]]:
+                            matrix[(row * 3) + i, (column * 3) + j] = "green"
+                        else:
+                            matrix[(row * 3) + i, (column * 3) + j] = "red"
 
-    except Exception as e:
-        menu_prompt(("[app.title]Error", "", f"[app.label]{e}"), {"Ok": None})
+        # update the matrix
+        matrix.build()
         
-        # an error has occoured, close the thread
-        sys.exit()
+    except:
+        pass
         
-
 # merges dictionaries without overwriting sub directories
 def _merge_dicts(dict1: dict, dict2: dict):
     """
@@ -577,13 +576,16 @@ def navigate_menu(page: str,):
 
         matrix = ptg.PixelMatrix(24, 24, default="red")
 
-        sensor_matrix_thread = continuous_threading.PeriodicThread(0.5, lambda *_: update_sensor_matrix(matrix))
+        sensor_matrix_thread = continuous_threading.PeriodicThread(0.1, lambda *_: update_sensor_matrix(matrix))
         sensor_matrix_thread.start()
 
         new_menu = ptg.Window(
             "[app.title]Sensor Test",
             "",
-            matrix,
+            ptg.Container(
+                matrix,
+                relative_width=0
+            ),
             "",
             ["Back", lambda *_: navigate_menu("calibrate")],
             is_static=True,
