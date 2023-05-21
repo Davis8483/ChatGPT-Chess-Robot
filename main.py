@@ -255,7 +255,7 @@ def update_joint_offset():
 
     prev_joint_offsets = joint_offsets
 
-# runs in a seperate thread, used to update the matrix on the sensor test page
+# runs in a separate thread, used to update the matrix on the sensor test page
 def update_sensor_matrix(matrix):
     letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
@@ -263,25 +263,26 @@ def update_sensor_matrix(matrix):
         board = serial_interface.get_board()
 
         # iterate through the entire board dictionary
-        for row in range(8):
+        for row in reversed(range(8)):
             for column in range(8):
 
                 # we are using 3x3 pixels as one square
                 for i in range(3):
                     for j in range(3):
-                        y = str((row * 3) + i)
-                        x = str((column * 3) + j)
+                        y = str((7 - row) * 3 + i)
+                        x = str(column * 3 + j)
 
                         if board[str(row + 1)][letter_columns[column]]:
-                            matrix[(row * 3) + i, (column * 3) + j] = "green"
+                            matrix[(7 - row) * 3 + i, column * 3 + j] = "green"
                         else:
-                            matrix[(row * 3) + i, (column * 3) + j] = "red"
+                            matrix[(7 - row) * 3 + i, column * 3 + j] = "red"
 
         # update the matrix
         matrix.build()
         
     except:
         pass
+
         
 # merges dictionaries without overwriting sub directories
 def _merge_dicts(dict1: dict, dict2: dict):
