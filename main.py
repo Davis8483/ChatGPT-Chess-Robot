@@ -30,6 +30,11 @@ window_manager = ptg.WindowManager(framerate=30)
 with open('settings.json') as json_file:
     settings = json.load(json_file)
 
+# initialize communication with the chess robot
+ser = serial.Serial(timeout=1)
+
+serial_interface = chess_bot.SerialInterface(ser)
+
 # create styles and macros
 def _create_aliases():
 
@@ -150,13 +155,10 @@ def get_joint_offset(slider: float):
 
 # returns if the chess_bot.py thread loop is active
 def get_status(*_):
-    try:
-        if bot_mainloop.is_running():
-            return " 🟢 Connected"
-        else:
-            return " 🔴 Disconnected"
 
-    except:
+    if ser.is_open:
+        return " 🟢 Connected"
+    else:
         return " 🔴 Disconnected"
 
 # runs main function of chess bot after connecting to the board hardware
@@ -165,9 +167,11 @@ def toggle_connection(state: str):
     
     if state == "Disconnect":
         try:
-            ser = serial.Serial(port=settings["hardware"]["serial-port"], baudrate=settings["hardware"]["baud-rate"], timeout=1)
 
-            serial_interface = chess_bot.SerialInterface(ser)
+            ser.port = settings["hardware"]["serial-port"]
+            ser.baudrate = settings["hardware"]["baud-rate"]
+
+            ser.open()
 
             bot_mainloop = continuous_threading.PeriodicThread(0.2, serial_interface.mainloop)
             bot_mainloop.start()
@@ -181,9 +185,10 @@ def toggle_connection(state: str):
     else:
         try:
             bot_mainloop.close()
-            ser.close()
         except:
             pass
+
+        ser.close()
 
 # creates a custom alert menu
 # example call: menu_prompt(("[app.title]Test Prompt", ""), {"Ok": my_function})
@@ -464,15 +469,10 @@ def navigate_menu(page: str,):
     if page == "jog":
         
         # check to see if the hardware is connected
-        try:
-            if bot_mainloop.is_running():
-                pass
+        if ser.is_open:
+            pass
 
-            else:
-                menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
-                return
-            
-        except:
+        else:
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
 
@@ -546,15 +546,11 @@ def navigate_menu(page: str,):
     if page == "calibrate":
 
         # check to see if the hardware is connected
-        try:
-            if bot_mainloop.is_running():
-                pass
 
-            else:
-                menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
-                return
-            
-        except:
+        if ser.is_open:
+            pass
+
+        else:
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
 
