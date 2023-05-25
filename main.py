@@ -75,6 +75,7 @@ def _configure_widgets():
 
     ptg.Button.styles.label = "app.button.label"
     ptg.Button.styles.highlight = "app.button.highlight"
+    ptg.Button.set_char("delimiter", ["[ ", " ]"])
 
     ptg.Toggle.set_char("delimiter", ["[ ", " ]"])
 
