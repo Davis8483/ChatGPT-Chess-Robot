@@ -23,6 +23,111 @@
     "2": -4,
     "3": 2
   },
+  "led-strip": {
+    "brightness": 124,
+    "idle": {
+      "effect": "rainbow",
+      "speed": 150,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          0,
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "countdown": {
+      "effect": "fade",
+      "speed": 255,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          255,
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          255
+        ]
+      }
+    },
+    "wld-stats": {
+      "effect": "wld-stats",
+      "speed": 255,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          255,
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          255
+        ]
+      }
+    },
+    "capture": {
+      "effect": "gradient",
+      "speed": 150,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          255,
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "win": {
+      "effect": "fade",
+      "speed": 255,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          0,
+          255,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "lose": {
+      "effect": "fade",
+      "speed": 255,
+      "intensity": 150,
+      "pallet": {
+        "1": [
+          255,
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
   "gui": {
     "length-terminal-arm-1": 11,
     "length-terminal-arm-2": 11

@@ -35,6 +35,8 @@ data = {
     "effect": "glow",
     "intensity": 150,
     "speed": 100,
+    "brightness": 255,
+    "index": 0,
     "pallet": {
       "1": [55, 0, 0],
       "2": [0, 0, 0]
@@ -99,7 +101,6 @@ poller = uselect.poll()
 poller.register(sys.stdin, uselect.POLLIN)
 
 # mainloop
-effect_index = 0
 while True:
 
   # check if serial data is available
@@ -185,19 +186,21 @@ while True:
   step_size = (loop_delay / 1000) * ((int(data["leds"]["speed"]) % 256 + 1) / 255)
 
   # iterate the led effect index
-  effect_index += step_size
-  if effect_index > 1: 
-    effect_index = 0
+  data["leds"]["index"] += step_size
 
   # update effects pallet
   for key in data["leds"]["pallet"].keys():
     if key.isdigit():
       led_effects.pallet[int(key)] = data["leds"]["pallet"][key]
   
+  # set global brightness
+  led_strip1.brightness(int(data["leds"]["brightness"]) % 256)
+  led_strip2.brightness(int(data["leds"]["brightness"]) % 256)
+
   # update the led strip
   if data["leds"]["effect"] in led_effects.fx_list:
-
-    strip_update = led_effects.fx_list[data["leds"]["effect"]](led_effects, effect_index, (int(data["leds"]["intensity"]) % 256))
+    
+    strip_update = led_effects.fx_list[data["leds"]["effect"]](led_effects, (float(data["leds"]["index"]) % 1), (int(data["leds"]["intensity"]) % 256))
 
     for index in range(strip_length1):
       led_strip1.set_pixel(index, strip_update[index])
@@ -205,5 +208,6 @@ while True:
     for index in range(strip_length2):
       led_strip2.set_pixel(index, strip_update[strip_length1 + index])
 
+    # push the updates
     led_strip1.show()
     led_strip2.show()

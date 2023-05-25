@@ -207,5 +207,5 @@ class effects():
         "fade": fade, # fade pallet color 1 in while fading color 2 out
         "chase": chase, # two colors chasing after each other
         "gradient": gradient, # motion transition between colors 1 and 2
-        "wld stats": stats # two colors with smooth transitions, used to display who is winning/losing
+        "wld-stats": stats # two colors with smooth transitions, used to display who is winning/losing
     }
