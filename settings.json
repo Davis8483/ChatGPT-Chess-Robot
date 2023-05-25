@@ -15,8 +15,7 @@
     "length-arm-1": 192.3,
     "length-arm-2": 192.3,
     "grabber-closed-angle": 80,
-    "grabber-open-angle": 130,
-    "grabber_closed_angle": 80
+    "grabber-open-angle": 130
   },
   "joint-offsets": {
     "1": 8,

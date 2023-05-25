@@ -234,7 +234,7 @@ def update_joint_offset():
     # if changes are made save to settings file
     if joint_offsets != prev_joint_offsets:
         
-        _merge_dicts(settings, joint_offsets)
+        merge_dicts(settings, joint_offsets)
 
         # save settings to settings.json
         with open("settings.json", "w") as json_file:
@@ -280,24 +280,38 @@ def fill_matrix(matrix, color):
     matrix.build()
 
 # merges dictionaries without overwriting sub directories
-def _merge_dicts(dict1: dict, dict2: dict):
+def merge_dicts(dict1: dict, dict2: dict):
     """
     Merge two dictionaries recursively without overwriting sub-dictionaries.
     """
     for key, value in dict2.items():
         if isinstance(value, dict) and key in dict1:
-            _merge_dicts(dict1[key], value)
+            merge_dicts(dict1[key], value)
         else:
             dict1[key] = value
 
     return dict1
 
+# compares dictionary stored values, returns false if stored values are different
+def compare_dicts(large_dict: dict, smaller_dict: dict):
+    for key, value in smaller_dict.items():
+        if key in large_dict:
+            if isinstance(value, dict) and isinstance(large_dict[key], dict):
+                if not compare_dicts(large_dict[key], value):
+                    return False
+            elif value != large_dict[key]:
+                return False
+        else:
+            return False
+    return True
 
 # creates an alert window prompting to save changes
 def save_prompt(page: str, save: dict, _dosave=None):
     global save_alert, settings
 
-    if _dosave == None:
+    # check if a prompt needs to be created
+    if (_dosave == None) and not compare_dicts(settings, save):
+
         save_alert = window_manager.alert(
             "[app.title]Save Changes?",
             "",
@@ -309,18 +323,14 @@ def save_prompt(page: str, save: dict, _dosave=None):
 
     elif _dosave:
         # update settings dictionary using the save dictionary
-        _merge_dicts(settings, save)
+        merge_dicts(settings, save)
 
         # save settings to settings.json
         with open("settings.json", "w") as json_file:
             json_file.write(json.dumps(settings, indent=2))
 
         # close save prompt and navigate to specified window
-        try:
-            save_alert.close(animate=False)
-        except:
-            pass
-        navigate_menu(page)
+        save_prompt(page, save, _dosave=False)
 
     else:
         # close save prompt and navigate to specified window
@@ -450,7 +460,7 @@ def navigate_menu(page: str, *args):
                                                                 "length-arm-1": safe_float(arm1_length_input.value, 2, 0.0),
                                                                 "length-arm-2": safe_float(arm2_length_input.value, 2, 0.0),
                                                                 "grabber-open-angle": safe_int(grabber_open_input.value, 0),
-                                                                "grabber_closed_angle": safe_int(grabber_closed_input.value, 0)
+                                                                "grabber-closed-angle": safe_int(grabber_closed_input.value, 0)
                                                                 }})],
             is_static=True,
             is_noresize=True,
