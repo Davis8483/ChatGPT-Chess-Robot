@@ -222,26 +222,16 @@ def get_prompts():
 
 # runs in a seperate thread, used by the gui to live update joint positions while editing
 prev_joint_offsets = {"hardware":{}}
-def update_joint_offset():
-    global prev_joint_offsets
+def update_joint_offset(joint_num, value):
 
-    joint_offsets = {
-        "joint-offsets": {
-            "1": ((joint_1_offset_slider - 0.5) * 20),
-            "2": ((joint_2_offset_slider - 0.5) * 20),
-            "3": ((joint_3_offset_slider - 0.5) * 20)
-            }}
+    joint_offsets = {"joint-offsets": {}}
+    joint_offsets["joint-offsets"][str(joint_num)] = value
 
-    # if changes are made save to settings file
-    if joint_offsets != prev_joint_offsets:
-        
-        merge_dicts(settings, joint_offsets)
+    merge_dicts(settings, joint_offsets)
 
-        # save settings to settings.json
-        with open("settings.json", "w") as json_file:
-            json_file.write(json.dumps(settings, indent=2))
-
-    prev_joint_offsets = joint_offsets
+    # save settings to settings.json
+    with open("settings.json", "w") as json_file:
+        json_file.write(json.dumps(settings, indent=2))
 
 # runs in a separate thread, used to update the matrix on the sensor test page
 def update_sensor_matrix(matrix):
@@ -307,7 +297,7 @@ def compare_dicts(large_dict: dict, smaller_dict: dict):
     return True
 
 # creates an alert window prompting to save changes
-def save_prompt(page: str, save: dict, _dosave=None):
+def save_prompt(command: object, save: dict, _dosave=None):
     global save_alert, settings
 
     # check if a prompt needs to be created
@@ -316,9 +306,9 @@ def save_prompt(page: str, save: dict, _dosave=None):
         save_alert = window_manager.alert(
             "[app.title]Save Changes?",
             "",
-            ["Yes", lambda *_:save_prompt(page, save, _dosave=True)],
+            ["Yes", lambda *_:save_prompt(command, save, _dosave=True)],
             "",
-            ["No", lambda *_:save_prompt(page, save, _dosave=False)],
+            ["No", lambda *_:save_prompt(command, save, _dosave=False)],
             "",
         )
 
@@ -331,7 +321,7 @@ def save_prompt(page: str, save: dict, _dosave=None):
             json_file.write(json.dumps(settings, indent=2))
 
         # close save prompt and navigate to specified window
-        save_prompt(page, save, _dosave=False)
+        save_prompt(command, save, _dosave=False)
 
     else:
         # close save prompt and navigate to specified window
@@ -339,7 +329,9 @@ def save_prompt(page: str, save: dict, _dosave=None):
             save_alert.close(animate=False)
         except:
             pass
-        navigate_menu(page)
+        
+        # execute the set command
+        command()
 
 # switches which menu page is displayed
 def navigate_menu(page: str, *args):
@@ -402,8 +394,12 @@ def navigate_menu(page: str, *args):
                 relative_width=0.6
             ),
             "",
-            ["« Back", lambda *_: save_prompt("settings", save={
-                "gpt": {"api-key": safe_str(api_key_input.value, ""), "prompt": safe_str(prompt_input.value, "")}})],
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
+                                              save={
+                                                  "gpt": {
+                                                      "api-key": safe_str(api_key_input.value, ""),
+                                                      "prompt": safe_str(prompt_input.value, "")
+                                                      }})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -455,14 +451,15 @@ def navigate_menu(page: str, *args):
                 relative_width=0.6
             ),
             "",
-            ["« Back", lambda *_: save_prompt("settings", save={"hardware": 
-                                                              {"serial-port": safe_str(serial_port_input.value, ""),
-                                                                "baud-rate": safe_int(baud_rate_input.value, 0),
-                                                                "length-arm-1": safe_float(arm1_length_input.value, 2, 0.0),
-                                                                "length-arm-2": safe_float(arm2_length_input.value, 2, 0.0),
-                                                                "grabber-open-angle": safe_int(grabber_open_input.value, 0),
-                                                                "grabber-closed-angle": safe_int(grabber_closed_input.value, 0)
-                                                                }})],
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
+                                              save={"hardware": {
+                                                    "serial-port": safe_str(serial_port_input.value, ""),
+                                                    "baud-rate": safe_int(baud_rate_input.value, 0),
+                                                    "length-arm-1": safe_float(arm1_length_input.value, 2, 0.0),
+                                                    "length-arm-2": safe_float(arm2_length_input.value, 2, 0.0),
+                                                    "grabber-open-angle": safe_int(grabber_open_input.value, 0),
+                                                    "grabber-closed-angle": safe_int(grabber_closed_input.value, 0)
+                                                    }})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -488,23 +485,44 @@ def navigate_menu(page: str, *args):
                 "",
                 ["Preview", lambda *_: serial_interface.push_data({"data": {
                                                                     "leds": {
-                                                                        "brightness": int(brightness_slider.value * 255)}}})],
+                                                                        "brightness": round(brightness_slider.value * 255)}}})],
                 relative_width=0.6
             ),
             "",
-            ["Idle Macro »", lambda *_: navigate_menu("led_macro_settings", "Idle Macro", "idle")],
+            ["Idle Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Idle Macro", "idle"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["Countdown Macro »", lambda *_: navigate_menu("led_macro_settings", "Countdown Macro", "countdown")],
+            ["Countdown Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Countdown Macro", "countdown"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["WLD Stats Macro »", lambda *_: navigate_menu("led_macro_settings", "WLD Stats Macro", "wld-stats")],
+            ["WLD Stats Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "WLD Stats Macro", "wld-stats"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["Capture Macro »", lambda *_: navigate_menu("led_macro_settings", "Capture Macro", "capture")],
+            ["Capture Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Capture Macro", "capture"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["Win Macro »", lambda *_: navigate_menu("led_macro_settings", "Win Macro", "win")],
+            ["Win Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Win Macro", "win"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["Lose Macro »", lambda *_: navigate_menu("led_macro_settings", "Lose Macro", "lose")],
+            ["Lose Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Lose Macro", "lose"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             "",
-            ["« Back", lambda *_: save_prompt("settings", save={"led-strip": {"brightness": int(brightness_slider.value * 255)}})],
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -518,11 +536,11 @@ def navigate_menu(page: str, *args):
 
         speed_slider = ptg.Slider()
         speed_slider.value = (settings["led-strip"][args[1]]["speed"] / 255)
-        ptg.tim.define("!effect_speed", lambda *_: str(int(speed_slider.value * 255)))
+        ptg.tim.define("!effect_speed", lambda *_: str(round(speed_slider.value * 255)))
 
         intensity_slider = ptg.Slider()
         intensity_slider.value = (settings["led-strip"][args[1]]["intensity"] / 255)
-        ptg.tim.define("!effect_intensity", lambda *_: str(int(intensity_slider.value * 255)))
+        ptg.tim.define("!effect_intensity", lambda *_: str(round(intensity_slider.value * 255)))
 
         pallet1_matrix = ptg.PixelMatrix(4, 3, default=f"{settings['led-strip'][args[1]]['pallet']['1'][0]};{settings['led-strip'][args[1]]['pallet']['1'][1]};{settings['led-strip'][args[1]]['pallet']['1'][2]}")
         
@@ -532,41 +550,41 @@ def navigate_menu(page: str, *args):
         pallet1_red_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][0] / 255)
         pallet1_red_slider.styles.unfilled = "80;0;0"
         pallet1_red_slider.styles.filled = "255;0;0"
-        ptg.tim.define("!pallet_1r", lambda *_: str(int(pallet1_red_slider.value * 255)))
+        ptg.tim.define("!pallet_1r", lambda *_: str(round(pallet1_red_slider.value * 255)))
 
         pallet1_green_slider = ptg.Slider()
         pallet1_green_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][1] / 255)
         pallet1_green_slider.styles.unfilled = "0;80;0"
         pallet1_green_slider.styles.filled = "0;255;0"
-        ptg.tim.define("!pallet_1g", lambda *_: str(int(pallet1_green_slider.value * 255)))
+        ptg.tim.define("!pallet_1g", lambda *_: str(round(pallet1_green_slider.value * 255)))
 
         pallet1_blue_slider = ptg.Slider()
         pallet1_blue_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][2] / 255)
         pallet1_blue_slider.styles.unfilled = "0;0;80"
         pallet1_blue_slider.styles.filled = "0;0;255"
-        ptg.tim.define("!pallet_1b", lambda *_: str(int(pallet1_blue_slider.value * 255)))
+        ptg.tim.define("!pallet_1b", lambda *_: str(round(pallet1_blue_slider.value * 255)))
 
         pallet2_red_slider = ptg.Slider()
         pallet2_red_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][0] / 255)
         pallet2_red_slider.styles.unfilled = "80;0;0"
         pallet2_red_slider.styles.filled = "255;0;0"
-        ptg.tim.define("!pallet_2r", lambda *_: str(int(pallet2_red_slider.value * 255)))
+        ptg.tim.define("!pallet_2r", lambda *_: str(round(pallet2_red_slider.value * 255)))
 
         pallet2_green_slider = ptg.Slider()
         pallet2_green_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][1] / 255)
         pallet2_green_slider.styles.unfilled = "0;80;0"
         pallet2_green_slider.styles.filled = "0;255;0"
-        ptg.tim.define("!pallet_2g", lambda *_: str(int(pallet2_green_slider.value * 255)))
+        ptg.tim.define("!pallet_2g", lambda *_: str(round(pallet2_green_slider.value * 255)))
 
         pallet2_blue_slider = ptg.Slider()
         pallet2_blue_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][2] / 255)
         pallet2_blue_slider.styles.unfilled = "0;0;80"
         pallet2_blue_slider.styles.filled = "0;0;255"
-        ptg.tim.define("!pallet_2b", lambda *_: str(int(pallet2_blue_slider.value * 255)))
+        ptg.tim.define("!pallet_2b", lambda *_: str(round(pallet2_blue_slider.value * 255)))
         
         # when sliders are changed update the color matrix
-        update_matrix1 = lambda *_: fill_matrix(pallet1_matrix, f"{int(pallet1_red_slider.value * 255)};{int(pallet1_green_slider.value * 255)};{int(pallet1_blue_slider.value * 255)}")
-        update_matrix2 = lambda *_: fill_matrix(pallet2_matrix, f"{int(pallet2_red_slider.value * 255)};{int(pallet2_green_slider.value * 255)};{int(pallet2_blue_slider.value * 255)}")
+        update_matrix1 = lambda *_: fill_matrix(pallet1_matrix, f"{round(pallet1_red_slider.value * 255)};{round(pallet1_green_slider.value * 255)};{round(pallet1_blue_slider.value * 255)}")
+        update_matrix2 = lambda *_: fill_matrix(pallet2_matrix, f"{round(pallet2_red_slider.value * 255)};{round(pallet2_green_slider.value * 255)};{round(pallet2_blue_slider.value * 255)}")
 
         pallet1_red_slider.onchange = update_matrix1
         pallet1_green_slider.onchange = update_matrix1
@@ -646,40 +664,41 @@ def navigate_menu(page: str, *args):
                 ["Preview", lambda *_: serial_interface.push_data({"data": {
                                                                     "leds": {
                                                                         "effect": safe_str(effect_input.value, "blink"),
-                                                                        "speed": int(speed_slider.value * 255),
-                                                                        "intensity": int(intensity_slider.value * 255),
+                                                                        "speed": round(speed_slider.value * 255),
+                                                                        "intensity": round(intensity_slider.value * 255),
                                                                         "pallet":{
                                                                             "1": [
-                                                                                int(pallet1_red_slider.value * 255),
-                                                                                int(pallet1_green_slider.value * 255),
-                                                                                int(pallet1_blue_slider.value * 255)
+                                                                                round(pallet1_red_slider.value * 255),
+                                                                                round(pallet1_green_slider.value * 255),
+                                                                                round(pallet1_blue_slider.value * 255)
                                                                             ],
                                                                             "2": [
-                                                                                int(pallet2_red_slider.value * 255),
-                                                                                int(pallet2_green_slider.value * 255),
-                                                                                int(pallet2_blue_slider.value * 255)
+                                                                                round(pallet2_red_slider.value * 255),
+                                                                                round(pallet2_green_slider.value * 255),
+                                                                                round(pallet2_blue_slider.value * 255)
                                                                             ]
                                                                         }}}})],
                 relative_width = 0.6
             ),
             "",
-            ["« Back", lambda *_: save_prompt("led_settings", save={"led-strip":{
-                                                                        args[1]:{
-                                                                            "effect": safe_str(effect_input.value, "blink"),
-                                                                            "speed": int(speed_slider.value * 255),
-                                                                            "intensity": int(intensity_slider.value * 255),
-                                                                            "pallet":{
-                                                                                "1": [
-                                                                                    int(pallet1_red_slider.value * 255),
-                                                                                    int(pallet1_green_slider.value * 255),
-                                                                                    int(pallet1_blue_slider.value * 255)
-                                                                                ],
-                                                                                "2": [
-                                                                                    int(pallet2_red_slider.value * 255),
-                                                                                    int(pallet2_green_slider.value * 255),
-                                                                                    int(pallet2_blue_slider.value * 255)
-                                                                                ]
-                                                                            }}}})],
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("led_settings"),
+                                              save={"led-strip":{
+                                                    args[1]:{
+                                                        "effect": safe_str(effect_input.value, "blink"),
+                                                        "speed": round(speed_slider.value * 255),
+                                                        "intensity": round(intensity_slider.value * 255),
+                                                        "pallet":{
+                                                            "1": [
+                                                                round(pallet1_red_slider.value * 255),
+                                                                round(pallet1_green_slider.value * 255),
+                                                                round(pallet1_blue_slider.value * 255)
+                                                            ],
+                                                            "2": [
+                                                                round(pallet2_red_slider.value * 255),
+                                                                round(pallet2_green_slider.value * 255),
+                                                                round(pallet2_blue_slider.value * 255)
+                                                            ]
+                                                        }}}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -829,21 +848,19 @@ def navigate_menu(page: str, *args):
     if page == "joint_offsets":
 
         joint_1_offset_slider = ptg.Slider()
-        joint_1_offset_slider.value = round((int(settings["joint-offsets"]["1"]) / 20) + 0.5, 1)
+        joint_1_offset_slider.value = round((round(settings["joint-offsets"]["1"]) / 20) + 0.5, 1)
+        joint_1_offset_slider.onchange = lambda *_: update_joint_offset(1, round((joint_1_offset_slider.value - 0.5) * 20))
+        ptg.tim.define("!offset_joint1", lambda *_: str(round((joint_1_offset_slider.value - 0.5) * 20)))
 
         joint_2_offset_slider = ptg.Slider()
-        joint_2_offset_slider.value = round((int(settings["joint-offsets"]["2"]) / 20) + 0.5, 1)
+        joint_2_offset_slider.value = round((round(settings["joint-offsets"]["2"]) / 20) + 0.5, 1)
+        joint_2_offset_slider.onchange = lambda *_: update_joint_offset(2, round((joint_2_offset_slider.value - 0.5) * 20))
+        ptg.tim.define("!offset_joint2", lambda *_: str(round((joint_2_offset_slider.value - 0.5) * 20)))
 
         joint_3_offset_slider = ptg.Slider()
-        joint_3_offset_slider.value = round((int(settings["joint-offsets"]["3"]) / 20) + 0.5, 1)
-
-        # define macros used in this page
-        ptg.tim.define("!offset_joint1", lambda *_: str(round((joint_1_offset_slider.value - 0.5) * 20)))
-        ptg.tim.define("!offset_joint2", lambda *_: str(round((joint_2_offset_slider.value - 0.5) * 20)))
+        joint_3_offset_slider.value = round((round(settings["joint-offsets"]["3"]) / 20) + 0.5, 1)
+        joint_3_offset_slider.onchange = lambda *_: update_joint_offset(3, round((joint_3_offset_slider.value - 0.5) * 20))
         ptg.tim.define("!offset_joint3", lambda *_: str(round((joint_3_offset_slider.value - 0.5) * 20)))
-
-        joint_offset_thread = continuous_threading.PeriodicThread(0.5, update_joint_offset)
-        joint_offset_thread.start()
 
         new_menu = ptg.Window(
             "[app.title]Joint Offsets",
@@ -876,12 +893,6 @@ def navigate_menu(page: str, *args):
             horizontal_align=0,
             title="Menu » Calibrate » Joint Offsets"
         )
-
-    else:
-        try:
-            joint_offset_thread.close()
-        except:
-            pass
     
     # close the old menu window if open
     try:

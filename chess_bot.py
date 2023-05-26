@@ -55,13 +55,17 @@ def get_stats_visual(*_):
 
 # returns board visuals
 def get_board_visual(*_):
-    
+    global settings
+
     # check if stockfish engine is ready
     if stockfish_ready:
 
-        # load settings file
-        with open('settings.json') as json_file:
-            settings = json.load(json_file)
+        try:
+            # load settings file
+            with open('settings.json') as json_file:
+                settings = json.load(json_file)
+        except:
+            pass
 
         joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
             
@@ -82,11 +86,14 @@ def get_board_visual(*_):
 
 # used outside of this file to set the position that the mainloop should try to achieve
 def goto_position(x, y, z):
-    global pos_y, pos_x, pos_z
+    global pos_y, pos_x, pos_z, settings
 
-    # load settings file
-    with open('settings.json') as json_file:
-        settings = json.load(json_file)
+    try:
+        # load settings file
+        with open('settings.json') as json_file:
+            settings = json.load(json_file)
+    except:
+        pass
     
     # keep withing radial constraints
     if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]):
@@ -211,9 +218,12 @@ class SerialInterface():
     def mainloop(self):
         global pos_x, pos_y, settings, data
 
-        # load settings file
-        with open('settings.json') as json_file:
-            settings = json.load(json_file)
+        try:
+            # load settings file
+            with open('settings.json') as json_file:
+                settings = json.load(json_file)
+        except:
+            pass
 
         joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
 

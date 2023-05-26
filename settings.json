@@ -18,9 +18,9 @@
     "grabber-open-angle": 130
   },
   "joint-offsets": {
-    "1": 8,
-    "2": -4,
-    "3": 2
+    "1": 0,
+    "2": 0,
+    "3": 0
   },
   "led-strip": {
     "brightness": 127,
@@ -130,5 +130,8 @@
   "gui": {
     "length-terminal-arm-1": 11,
     "length-terminal-arm-2": 11
-  }
+  },
+  "1": 14.0,
+  "2": 10.0,
+  "3": 10.0
 }
