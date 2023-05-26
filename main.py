@@ -227,9 +227,9 @@ def update_joint_offset():
 
     joint_offsets = {
         "joint-offsets": {
-            "1": get_joint_offset(joint_1_offset_slider),
-            "2": get_joint_offset(joint_2_offset_slider),
-            "3": get_joint_offset(joint_3_offset_slider)
+            "1": ((joint_1_offset_slider - 0.5) * 20),
+            "2": ((joint_2_offset_slider - 0.5) * 20),
+            "3": ((joint_3_offset_slider - 0.5) * 20)
             }}
 
     # if changes are made save to settings file
@@ -486,10 +486,9 @@ def navigate_menu(page: str, *args):
                 ),
                 brightness_slider,
                 "",
-                ["Preview", lambda *_: serial_interface.push_data({
-                    "data":{
-                         "leds": {
-                            "brightness": int(brightness_slider.value * 255)}}})],
+                ["Preview", lambda *_: serial_interface.push_data({"data": {
+                                                                    "leds": {
+                                                                        "brightness": int(brightness_slider.value * 255)}}})],
                 relative_width=0.6
             ),
             "",

@@ -165,28 +165,30 @@ class SerialInterface():
                 return board
 
             except:
-                if index == 4:
-                    prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to fetch board..."), {"Ok": None}))
+                pass
 
     def get_effects(self):
 
-        # try 5 times
-        for index in range(5):
-            try:
-                # request board
-                self.serial.write('{"return":"fx-list"}\n'.encode())
+        if self.serial.is_open:
+            # try 5 times
+            for index in range(5):
+                try:
+                    # request board
+                    self.serial.write('{"return":"fx-list"}\n'.encode())
 
-                line = self.serial.read(self.serial.in_waiting).decode("utf-8")
+                    line = self.serial.read(self.serial.in_waiting).decode("utf-8")
 
-                # save effects list
-                effects = json.loads(line)["response"]["fx-list"]
+                    # save effects list
+                    effects = json.loads(line)["response"]["fx-list"]
 
-                return effects
+                    return effects
 
-            except:
-                if index == 4:
-                    prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to fetch led effects..."), {"Ok": None}))
-        
+                except:
+                    if index == 4:
+                        prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to fetch led effects..."), {"Ok": None}))
+        else:
+            prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to fetch led effects,", "[app.label]chess robot not connected..."), {"Ok": None}))
+
     # pushes a change to the chess board to preview it
     def push_data(self, data: dict):
 
@@ -194,12 +196,13 @@ class SerialInterface():
             # try 5 times
             for index in range(5):
                 try:
-                    self.serial.write(f'{data}\n')
+                    self.serial.write(f'{json.dumps(data)}\n'.encode())
+
                     break
 
-                except:
+                except Exception as e:
                     if index == 4:
-                        prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to push data..."), {"Ok": None}))
+                        prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to push data,", f"[app.label]{e}"), {"Ok": None}))
         
         else:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to push data,", "[app.label]chess robot not connected..."), {"Ok": None}))
