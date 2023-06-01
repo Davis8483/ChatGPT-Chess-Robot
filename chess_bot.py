@@ -235,7 +235,7 @@ class SerialInterface():
         prev_data = self.data
 
         # data to send to the chess board
-        data = {"data": {
+        self.data = {"data": {
             "angle-joint1": joint1 - 90 + settings["joint-offsets"]["1"],
             "angle-joint2": joint2 + settings["joint-offsets"]["2"],
             "angle-joint3": joint3,
@@ -244,4 +244,4 @@ class SerialInterface():
 
         # if new data is available, send it to the chess board
         if self.data != prev_data:
-            self.serial.write(f"{json.dumps(data)}\n".encode())
+            self.serial.write(f"{json.dumps(self.data)}\n".encode())
