@@ -25,6 +25,8 @@ with open('settings.json') as json_file:
 pos_z = 0
 pos_x = -settings["hardware"]["length-arm-1"]
 pos_y = -settings["hardware"]["length-arm-2"]
+pos_joint1 = 90
+pos_joint2 = 90
 grabber_state = "closed"
 
 # stores menu prompts to be handeled by the gui in main.py
@@ -66,42 +68,21 @@ def get_board_visual(*_):
                 settings = json.load(json_file)
         except:
             pass
-
-        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
             
         board_matrix = matrix_tools.string2matrix(sf.get_board_visual(), 2)
 
         # draw arm 1
-        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (joint1 - 180), settings["gui"]["length-terminal-arm-1"])
+        a1_end_x, a1_end_y = matrix_tools.calculate_end_coordinates(5, -1, (pos_joint1 - 180), settings["gui"]["length-terminal-arm-1"])
         updated_matrix = matrix_tools.draw_line(board_matrix, 5, -1, a1_end_x, a1_end_y, char="▒")
         
         # draw arm 2
-        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (joint1 + joint2 - 180), settings["gui"]["length-terminal-arm-2"])
+        a2_end_x, a2_end_y = matrix_tools.calculate_end_coordinates(a1_end_x, a1_end_y, (pos_joint1 + pos_joint2 - 180), settings["gui"]["length-terminal-arm-2"])
         updated_matrix = matrix_tools.draw_line(updated_matrix, a1_end_x, a1_end_y, a2_end_x, a2_end_y, char="▓")
 
         return matrix_tools.matrix2string(updated_matrix)
 
     else:
         return ""
-
-# used outside of this file to set the position that the mainloop should try to achieve
-def goto_position(x, y, z):
-    global pos_y, pos_x, pos_z, settings
-
-    try:
-        # load settings file
-        with open('settings.json') as json_file:
-            settings = json.load(json_file)
-    except:
-        pass
-    
-    # keep withing radial constraints
-    if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]):
-        pos_x = x
-        pos_y = y
-
-    pos_z = z
-
 
 # inverse kinematics junk, source: https://github.com/aakieu/2-dof-planar/blob/master/python/inverse_kinematics.py
 def _get_servo_angles(x, y, a1, a2):
@@ -119,10 +100,6 @@ def _get_servo_angles(x, y, a1, a2):
     theta_2 = numpy.rad2deg(phi_3) + 180
 
     return theta_1, theta_2
-
-def set_grabber(state: str):
-    global grabber_state
-    grabber_state = state
 
 # initialize the stockfish chess engine
 stockfish_ready = False
@@ -153,7 +130,6 @@ class SerialInterface():
 
     def __init__(self, serial_class):
         self.serial = serial_class
-        self.data = {}
 
     # returns board dictionary
     def get_board(self):
@@ -214,9 +190,9 @@ class SerialInterface():
         else:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to push data,", "[app.label]chess robot not connected..."), {"Ok": None}))
 
-    # ran as a continuous thread, controls the physical chess robot
-    def mainloop(self):
-        global pos_x, pos_y, settings, data
+    # moves arm, grabber, and z axis to desired position
+    def goto_position(self, x: float=None, y: float=None, z: float=None, grabber: str=None, retract: bool=True):
+        global pos_y, pos_x, pos_z, grabber_state, pos_joint1, pos_joint2, settings
 
         try:
             # load settings file
@@ -224,24 +200,66 @@ class SerialInterface():
                 settings = json.load(json_file)
         except:
             pass
+        
+        data = {"data": {}}
 
-        joint1, joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
+        if z != None:
+            pos_z = safe_float(z)
+            data["data"]["position-z"] = pos_z
 
-        if grabber_state == "open":
-            joint3 = settings["hardware"]["grabber-open-angle"]
-        elif grabber_state == "closed":
-            joint3 = settings["hardware"]["grabber-closed-angle"]
+        if grabber != None:
+            grabber_state = safe_str(grabber)
 
-        prev_data = self.data
+            if grabber_state == "open":
+                joint3 = settings["hardware"]["grabber-open-angle"]
+            elif grabber_state == "closed":
+                joint3 = settings["hardware"]["grabber-closed-angle"]
 
-        # data to send to the chess board
-        self.data = {"data": {
-            "angle-joint1": joint1 - 90 + settings["joint-offsets"]["1"],
-            "angle-joint2": joint2 + settings["joint-offsets"]["2"],
-            "angle-joint3": joint3,
-            "position-z": pos_z
-            }}
+            data["data"]["angle-joint3"] = joint3
 
-        # if new data is available, send it to the chess board
-        if self.data != prev_data:
-            self.serial.write(f"{json.dumps(self.data)}\n".encode())
+        # push z axis and grabber states to the board
+        self.push_data(data)
+
+        xy_update = False
+        
+        if x == None:
+            x = pos_x
+        else:
+            xy_update = True
+
+        if y == None:
+            y = pos_y
+        else:
+            xy_update = True
+
+        # keep within radial constraints of the arm
+        if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]) and xy_update:
+
+            pos_x = safe_float(x)
+            pos_y = safe_float(y)
+            
+            # get the updated joint angles
+            new_joint1, new_joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
+            
+            if (pos_joint2 < settings["hardware"]["retraction-angle"]) and retract:
+                # move mass as close to joint 1 as possible
+                self.push_data({"data": {"angle-joint2": settings["hardware"]["retraction-angle"]}})
+            
+                # wait for servo to finish
+                time.sleep(abs(settings["hardware"]["retraction-angle"] - pos_joint2) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
+
+            # move joint 1 into position
+            self.push_data({"data": {"angle-joint1": new_joint1 - 90 + settings["joint-offsets"]["1"]}})
+
+            # wait for servo to finish
+            time.sleep(abs(new_joint1 - pos_joint1) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
+
+            # move joint 2 into position
+            self.push_data({"data": {"angle-joint2": new_joint2 + settings["joint-offsets"]["2"]}})
+
+            # wait for servo to finish
+            time.sleep(abs(new_joint2 - pos_joint2) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
+
+            # we are done processing moves, update joint vars to reflect changes
+            pos_joint1 = new_joint1
+            pos_joint2 = new_joint2

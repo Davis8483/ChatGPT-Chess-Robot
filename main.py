@@ -156,8 +156,15 @@ def toggle_connection(state: str):
 
             ser.open()
 
-            bot_mainloop = continuous_threading.PeriodicThread(0.2, serial_interface.mainloop)
-            bot_mainloop.start()
+            # push idle led animation to indicate connection success
+            serial_interface.push_data({"data": {
+                                            "leds": {
+                                                "brightness": settings["led-strip"]["brightness"],
+                                                "effect": settings["led-strip"]["idle"]["effect"],
+                                                "speed": settings["led-strip"]["idle"]["speed"],
+                                                "intensity": settings["led-strip"]["idle"]["intensity"],
+                                                "pallet": settings["led-strip"]["idle"]["pallet"]
+                                                }}})
 
         except:
             connect_toggle.toggle()
@@ -166,10 +173,6 @@ def toggle_connection(state: str):
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Edit": (lambda *_: navigate_menu("hardware_settings")), "Ok": None})
 
     else:
-        try:
-            bot_mainloop.close()
-        except:
-            pass
 
         ser.close()
 
@@ -232,6 +235,8 @@ def update_joint_offset(joint_num, value):
     # save settings to settings.json
     with open("settings.json", "w") as json_file:
         json_file.write(json.dumps(settings, indent=2))
+
+    serial_interface.goto_position(x=chess_bot.pos_x, y=chess_bot.pos_y, retract=False)
 
 # runs in a separate thread, used to update the matrix on the sensor test page
 def update_sensor_matrix(matrix):
@@ -715,6 +720,9 @@ def navigate_menu(page: str, *args):
             menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
             return
 
+        x_input = ptg.InputField(value="0", prompt="X: ")
+        y_input = ptg.InputField(value="0", prompt="Y: ")
+
         # define macros used in this page
         ptg.tim.define("!steps_z", lambda *_: str(get_steps(z_step_slider)))
         ptg.tim.define("!steps_xy", lambda *_: str(get_steps(xy_step_slider)))
@@ -732,20 +740,20 @@ def navigate_menu(page: str, *args):
                     ptg.Label("([!pos_x] [/!], [!pos_y] [/!]) mm",
                               parent_align=2)
                 ),
-                ptg.KeyboardButton("w ↑", lambda *_: chess_bot.goto_position(
-                    chess_bot.pos_x, (chess_bot.pos_y + get_steps(xy_step_slider)), chess_bot.pos_z), bound="w"),
-                ptg.KeyboardButton("a ←", lambda *_: chess_bot.goto_position(
-                    (chess_bot.pos_x - get_steps(xy_step_slider)), chess_bot.pos_y, chess_bot.pos_z), bound="a"),
-                ptg.KeyboardButton("s ↓", lambda *_: chess_bot.goto_position(
-                    chess_bot.pos_x, (chess_bot.pos_y - get_steps(xy_step_slider)), chess_bot.pos_z), bound="s"),
-                ptg.KeyboardButton("d →", lambda *_: chess_bot.goto_position(
-                    (chess_bot.pos_x + get_steps(xy_step_slider)), chess_bot.pos_y, chess_bot.pos_z), bound="d"),
+                ptg.KeyboardButton("w ↑", lambda *_: serial_interface.goto_position(y=(chess_bot.pos_y + get_steps(xy_step_slider)), retract=False), bound="w"),
+                ptg.KeyboardButton("a ←", lambda *_: serial_interface.goto_position(x=(chess_bot.pos_x - get_steps(xy_step_slider)), retract=False), bound="a"),
+                ptg.KeyboardButton("s ↓", lambda *_: serial_interface.goto_position(y=(chess_bot.pos_y - get_steps(xy_step_slider)), retract=False), bound="s"),
+                ptg.KeyboardButton("d →", lambda *_: serial_interface.goto_position(x=(chess_bot.pos_x + get_steps(xy_step_slider)), retract=False), bound="d"),
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Step:", parent_align=0),
                     ptg.Label("[!steps_xy] [/!] mm", parent_align=2)
                 ),
                 xy_step_slider,
+                "",
+                x_input,
+                y_input,
+                ["GoTo", lambda *_: serial_interface.goto_position(x=safe_int(x_input.value, None), y=safe_int(y_input.value, None))],
                 relative_width=0.6
             ),
             "",
@@ -754,12 +762,9 @@ def navigate_menu(page: str, *args):
                     ptg.Label("[app.label]Jog Z:", parent_align=0),
                     ptg.Label("[!pos_z] [/!] mm", parent_align=2)
                 ),
-                ptg.KeyboardButton("e Up", lambda *_: chess_bot.goto_position(
-                    chess_bot.pos_x, chess_bot.pos_y, (chess_bot.pos_z + get_steps(z_step_slider))), bound="e"),
-                ptg.KeyboardButton("q Down", lambda *_: chess_bot.goto_position(
-                    chess_bot.pos_x, chess_bot.pos_y, (chess_bot.pos_z - get_steps(z_step_slider))), bound="q"),
-                ptg.Button(
-                    "Home", lambda *_: chess_bot.goto_position(chess_bot.pos_x, chess_bot.pos_y, 0)),
+                ptg.KeyboardButton("e Up", lambda *_: serial_interface.goto_position(z=(chess_bot.pos_z + get_steps(z_step_slider))), bound="e"),
+                ptg.KeyboardButton("q Down", lambda *_: serial_interface.goto_position(z=(chess_bot.pos_z - get_steps(z_step_slider))), bound="q"),
+                ptg.Button("Home", lambda *_: serial_interface.goto_position(z=0)),
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Step:", parent_align=0),
@@ -775,10 +780,9 @@ def navigate_menu(page: str, *args):
                     ptg.Label("[!grabber_state] [/!]", parent_align=2),
                 ),
                 ptg.KeyboardButton(
-                    "r Open", lambda *_: chess_bot.set_grabber('open'), bound="r"),
+                    "r Open", lambda *_: serial_interface.goto_position(grabber="open"), bound="r"),
                 ptg.KeyboardButton(
-                    "f Close", lambda *_: chess_bot.set_grabber('closed'), bound="f"),
-                "",
+                    "f Close", lambda *_: serial_interface.goto_position(grabber="closed"), bound="f"),
                 relative_width=0.6
             ),
             "",
