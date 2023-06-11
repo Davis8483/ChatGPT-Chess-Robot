@@ -4,8 +4,6 @@ import time
 import matrix_tools
 import os
 import queue
-import random
-
 
 try:
     import stockfish
@@ -130,6 +128,23 @@ class SerialInterface():
 
     def __init__(self, serial_class):
         self.serial = serial_class
+
+    def check_connection(self):
+        
+        connected = False
+        for index in range(5):
+            try:
+                # push an empty packet
+                self.serial.write('{}\n'.encode())
+
+                connected = True
+                pass
+
+            except:
+                pass
+        
+        if not connected:
+            self.serial.close()
 
     # returns board dictionary
     def get_board(self):

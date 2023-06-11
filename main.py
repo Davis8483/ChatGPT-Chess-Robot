@@ -2,8 +2,6 @@ import subprocess
 import json
 import chess_bot
 import webbrowser
-import time
-import sys
 
 try:
     import pyperclip
@@ -146,43 +144,66 @@ def get_status(*_):
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state: str):
-    global bot_mainloop, ser, serial_interface
+    global connection_checking_thread, ser, serial_interface
     
     if state == "Disconnect":
         try:
-
             ser.port = settings["hardware"]["serial-port"]
             ser.baudrate = settings["hardware"]["baud-rate"]
 
             ser.open()
 
-            # push idle led animation to indicate connection success
-            serial_interface.push_data({"data": {
-                                            "leds": {
-                                                "brightness": settings["led-strip"]["brightness"],
-                                                "effect": settings["led-strip"]["idle"]["effect"],
-                                                "speed": settings["led-strip"]["idle"]["speed"],
-                                                "intensity": settings["led-strip"]["idle"]["intensity"],
-                                                "pallet": settings["led-strip"]["idle"]["pallet"]
-                                                }}})
+            connection_checking_thread = continuous_threading.PeriodicThread(2, lambda *_: serial_interface.check_connection())
+            connection_checking_thread.start()
 
+            if ser.is_open:
+                # push idle led animation to indicate connection success
+                serial_interface.push_data({"data": {
+                                                "leds": {
+                                                    "brightness": settings["led-strip"]["brightness"],
+                                                    "effect": settings["led-strip"]["idle"]["effect"],
+                                                    "speed": settings["led-strip"]["idle"]["speed"],
+                                                    "intensity": settings["led-strip"]["idle"]["intensity"],
+                                                    "pallet": settings["led-strip"]["idle"]["pallet"]
+                                                    }}})
+        
         except:
             connect_toggle.toggle()
-
+        
             # create an prompt notifying the user
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to connect to chess bot...", "", f"[app.label]Port: [/][app.text]{settings['hardware']['serial-port']}"), {"Edit": (lambda *_: navigate_menu("hardware_settings")), "Ok": None})
 
     else:
 
-        ser.close()
+        if ser.is_open:
+            # push disconnected led animation
+            serial_interface.push_data({"data": {
+                                            "leds": {
+                                                "brightness": 255,
+                                                "effect": "glow",
+                                                "speed": 100,
+                                                "intensity": 150,
+                                                "pallet": {
+                                                    "1": [55, 0, 0],
+                                                    "2": [0, 0, 0]
+                                                    }}}})
+
+            ser.close()
+
+        try:
+            connection_checking_thread.close()
+        except:
+            pass
 
 # creates a custom alert menu
 # example call: menu_prompt(("[app.title]Test Prompt", ""), {"Ok": my_function})
+prompt_alerts = []
 def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
-    global prompt_alert
+    global prompt_alerts
 
     if _close:
-        prompt_alert.close(animate=False)
+        prompt_alerts[len(prompt_alerts) - 1].close(animate=False)
+        prompt_alerts.pop()
 
         if _function is not None:
             try:
@@ -211,7 +232,7 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
         prompt += ("", new_button)
 
     prompt += ("",)
-    prompt_alert = window_manager.alert(*prompt)
+    prompt_alerts.append(window_manager.alert(*prompt))
 
 
 # runs in a seperate thread, checks to see if chess_bot.py has prompts available and then displays it
