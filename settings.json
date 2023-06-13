@@ -20,9 +20,9 @@
     "retraction-angle": 130
   },
   "joint-offsets": {
-    "1": 10,
-    "2": 6,
-    "3": 0
+    "1": 2,
+    "2": 2,
+    "3": 6
   },
   "board-positions": {
     "1": {
@@ -110,7 +110,7 @@
     "brightness": 178,
     "idle": {
       "effect": "rainbow",
-      "speed": 153,
+      "speed": 128,
       "intensity": 102,
       "pallet": {
         "1": [

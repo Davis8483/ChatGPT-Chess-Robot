@@ -236,8 +236,10 @@ class SerialInterface():
                 joint3 = settings["hardware"]["grabber-open-angle"]
             elif grabber_state == "closed":
                 joint3 = settings["hardware"]["grabber-closed-angle"]
+            elif grabber_state == "calibrate":
+                joint3 = 90
 
-            data["data"]["angle-joint3"] = joint3
+            data["data"]["angle-joint3"] = joint3 + settings["joint-offsets"]["3"]
 
         # push z axis and grabber states to the board
         self.push_data(data)

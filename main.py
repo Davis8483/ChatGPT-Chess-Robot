@@ -257,7 +257,7 @@ def update_joint_offset(joint_num, value):
     with open("settings.json", "w") as json_file:
         json_file.write(json.dumps(settings, indent=2))
 
-    serial_interface.goto_position(x=chess_bot.pos_x, y=chess_bot.pos_y, retract=False)
+    serial_interface.goto_position(x=chess_bot.pos_x, y=chess_bot.pos_y, grabber="calibrate", retract=False)
 
 # runs in a separate thread, used to update the matrix on the sensor test page
 def update_sensor_matrix(matrix):
@@ -908,6 +908,8 @@ def navigate_menu(page: str, *args):
                     ptg.Label("[!offset_joint3] [/!]°", parent_align=2)
                 ),
                 joint_3_offset_slider,
+                "",
+                ["Right Angle Joints", lambda *_: serial_interface.goto_position(x=-settings["hardware"]["length-arm-1"], y=-settings["hardware"]["length-arm-2"], grabber="calibrate")],
                 relative_width=0.6
             ),
             "",
@@ -928,7 +930,7 @@ def navigate_menu(page: str, *args):
     menu = new_menu
 
     # now open the new window
-    window_manager.add(menu, assign="menu", animate=True)
+    window_manager.add(menu, assign="menu", animate=False)
 
 # runs the gui
 def main():
