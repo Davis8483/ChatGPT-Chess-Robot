@@ -29,7 +29,7 @@ with open('settings.json') as json_file:
     settings = json.load(json_file)
 
 # initialize communication with the chess robot
-ser = serial.Serial(timeout=1)
+ser = serial.Serial(timeout=2)
 
 serial_interface = chess_bot.SerialInterface(ser)
 
@@ -153,7 +153,7 @@ def toggle_connection(state: str):
 
             ser.open()
 
-            connection_checking_thread = continuous_threading.PeriodicThread(2, lambda *_: serial_interface.check_connection())
+            connection_checking_thread = continuous_threading.PeriodicThread(3, lambda *_: serial_interface.check_connection())
             connection_checking_thread.start()
 
             if ser.is_open:
@@ -738,7 +738,7 @@ def navigate_menu(page: str, *args):
             pass
 
         else:
-            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected...", "", connect_toggle), {"Ok": None})
             return
 
         x_input = ptg.InputField(value="0", prompt="X: ")
@@ -823,7 +823,7 @@ def navigate_menu(page: str, *args):
             pass
 
         else:
-            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected..."), {"Ok": None})
+            menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to access page,", "[app.label]chess robot not connected...", "", connect_toggle), {"Ok": None})
             return
 
         new_menu = ptg.Window(

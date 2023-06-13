@@ -138,10 +138,12 @@ class SerialInterface():
                 self.serial.write('{}\n'.encode())
 
                 connected = True
-                pass
+                break
 
             except:
                 pass
+
+            time.sleep(0.1)
         
         if not connected:
             self.serial.close()
@@ -165,6 +167,8 @@ class SerialInterface():
             except:
                 pass
 
+            time.sleep(0.1)
+
     def get_effects(self):
 
         if self.serial.is_open:
@@ -184,6 +188,8 @@ class SerialInterface():
                 except:
                     if index == 4:
                         prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to fetch led effects..."), {"Ok": None}))
+
+                time.sleep(0.1)
         else:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to fetch led effects,", "[app.label]chess robot not connected..."), {"Ok": None}))
 
@@ -201,7 +207,8 @@ class SerialInterface():
                 except Exception as e:
                     if index == 4:
                         prompt_queue.put((("[app.title]Error", "", "[app.label]Failed to push data,", f"[app.label]{e}"), {"Ok": None}))
-        
+                
+                time.sleep(0.1)
         else:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to push data,", "[app.label]chess robot not connected..."), {"Ok": None}))
 

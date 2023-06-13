@@ -2,7 +2,7 @@ import machine
 import sys
 import json
 import time
-import uselect
+import _thread
 from pi_pico_neopixel.neopixel import Neopixel
 import led_tools
 
@@ -96,15 +96,9 @@ def merge_dicts(dict1: dict, dict2: dict):
 
   return dict1
 
-
-poller = uselect.poll()
-poller.register(sys.stdin, uselect.POLLIN)
-
-# mainloop
-while True:
-
-  # check if serial data is available
-  if (sys.stdin, uselect.POLLIN) in poller.poll(loop_delay):   
+# ran as a seperate thread, takes in serial data and updates data dictionary
+def serial_communication_thread():
+  while True:
 
     # sent back to the host device based on data recieved
     response = {"response": {}}
@@ -155,6 +149,15 @@ while True:
 
     # send response to host
     sys.stdout.write(f"{json.dumps(response)}\n")
+
+# start the serial communication handling thread
+_thread.start_new_thread(serial_communication_thread, ())
+
+# mainloop, updates servo positions and leds
+while True:
+  
+  # loop delay
+  time.sleep(loop_delay / 1000)
 
   # set servo positions
   joint1_servo.duty_u16(get_pwm(data["angle-joint1"]))
