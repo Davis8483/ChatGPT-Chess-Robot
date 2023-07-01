@@ -2,6 +2,8 @@ import subprocess
 import json
 import chess_bot
 import webbrowser
+import atexit
+import time
 
 try:
     import pyperclip
@@ -51,9 +53,10 @@ def _create_aliases():
     ptg.tim.alias("app.slider.filled_selected", "bold #ffffff")
 
     # define gui macros used in the status sidebar
-    ptg.tim.define("!machine_status", get_status)
-    ptg.tim.define("!machine_visuals", chess_bot.get_board_visual)
-    ptg.tim.define("!machine_wdl_stats", chess_bot.get_stats_visual)
+    ptg.tim.define("!connection_status", lambda *_: get_connection_status())
+    ptg.tim.define("!game_status", lambda *_: get_game_status())
+    ptg.tim.define("!game_visuals", lambda *_: chess_bot.get_board_visual())
+    ptg.tim.define("!game_wdl_stats", lambda *_: chess_bot.get_stats_visual())
 
 
 # set default styles for different widget types
@@ -134,13 +137,46 @@ def get_steps(slider: float):
     steps = round(2 ** ((slider.value * 10) - 3), 1)
     return steps
 
-# returns if the chess_bot.py thread loop is active
-def get_status(*_):
+# returns a ui element indicating if the board is connected
+def get_connection_status():
 
     if ser.is_open:
-        return " 🟢 Connected"
+        return "🟢 Connected"
     else:
-        return " 🔴 Disconnected"
+        return "🔴 Disconnected"
+    
+# returns a ui element indicating what stage the chess game is in
+def get_game_status():
+
+    if ser.is_open:
+        if serial_interface.game_state == "inactive":
+            return "Idle ⌛"
+        
+        elif serial_interface.game_state == "starting":
+            return "Game Starting 🚩"
+        
+        elif serial_interface.game_state == "waiting":
+            return "Waiting for Move 🕓"
+        
+        elif serial_interface.game_state == "moving":
+            return "Making Move ♙🫲"
+        
+        elif serial_interface.game_state == "speaking":
+            return "Speaking 🔊"
+        
+        elif serial_interface.game_state == "invalid":
+            return "Invalid Move 🚫"
+        
+        elif serial_interface.game_state == "win":
+            return "You Won 🏆"
+        
+        elif serial_interface.game_state == "lose":
+            return "You Lost ❌"
+        
+        else:
+            return serial_interface.game_state
+
+    return "----"
 
 # runs main function of chess bot after connecting to the board hardware
 def toggle_connection(state: str):
@@ -153,19 +189,14 @@ def toggle_connection(state: str):
 
             ser.open()
 
+            time.sleep(0.5)
+
             connection_checking_thread = continuous_threading.PeriodicThread(3, lambda *_: serial_interface.check_connection())
             connection_checking_thread.start()
 
             if ser.is_open:
                 # push idle led animation to indicate connection success
-                serial_interface.push_data({"data": {
-                                                "leds": {
-                                                    "brightness": settings["led-strip"]["brightness"],
-                                                    "effect": settings["led-strip"]["idle"]["effect"],
-                                                    "speed": settings["led-strip"]["idle"]["speed"],
-                                                    "intensity": settings["led-strip"]["idle"]["intensity"],
-                                                    "pallet": settings["led-strip"]["idle"]["pallet"]
-                                                    }}})
+                serial_interface.set_leds("idle")
         
         except:
             connect_toggle.toggle()
@@ -177,16 +208,7 @@ def toggle_connection(state: str):
 
         if ser.is_open:
             # push disconnected led animation
-            serial_interface.push_data({"data": {
-                                            "leds": {
-                                                "brightness": 255,
-                                                "effect": "glow",
-                                                "speed": 100,
-                                                "intensity": 150,
-                                                "pallet": {
-                                                    "1": [55, 0, 0],
-                                                    "2": [0, 0, 0]
-                                                    }}}})
+            serial_interface.set_leds("disconnected")
 
             ser.close()
 
@@ -194,6 +216,41 @@ def toggle_connection(state: str):
             connection_checking_thread.close()
         except:
             pass
+
+# starts the chess game
+def new_game():
+    global chess_game_thread
+
+    # check if board is connected
+    if ser.is_open:
+
+        # if a game is already running, ask user if they want to restart
+        if serial_interface.game_state != "inactive":
+
+            menu_prompt(("[app.title]Restart Game?", "", "[app.label]A chess game is in progress,", "[app.label]do you want to restart?"), {"Yes": restart_game, "No": None})
+        
+        else:
+            chess_game_thread = continuous_threading.Thread(serial_interface.run_game)
+            chess_game_thread.start()
+    else:
+        menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to start game,", "[app.label]chess robot not connected...", "", connect_toggle), {"Ok": None})
+
+# restarts the chess game
+def restart_game():
+    global chess_game_thread
+
+    serial_interface.end_game()
+
+    chess_game_thread = continuous_threading.Thread(serial_interface.run_game)
+    chess_game_thread.start()
+
+# stops the chess game
+def end_game():
+    if serial_interface.game_state != "inactive":
+        menu_prompt(("[app.title]End Game?",), {"Yes": serial_interface.end_game, "No": None})
+    
+    else:
+        menu_prompt(("[app.title]Cannot End", "", "[app.label]You cannot end a non-existent", "[app.label]chess game..."), {"Ok": None})
 
 # creates a custom alert menu
 # example call: menu_prompt(("[app.title]Test Prompt", ""), {"Ok": my_function})
@@ -231,16 +288,14 @@ def menu_prompt(text: tuple, buttons: dict, _close=False, _function=None):
 
         prompt += ("", new_button)
 
-    prompt += ("",)
-    prompt_alerts.append(window_manager.alert(*prompt))
+    prompt_alerts.append(window_manager.alert(*prompt, ""))
 
 
 # runs in a seperate thread, checks to see if chess_bot.py has prompts available and then displays it
 def get_prompts():
     if not chess_bot.prompt_queue.empty():
         try:
-            text, buttons = chess_bot.prompt_queue.get()
-            menu_prompt(text, buttons)
+            menu_prompt(*chess_bot.prompt_queue.get())
         except:
             menu_prompt(("[app.title]Error", "", "[app.label]Failed to create menu prompt..."), {"Ok": None})
 
@@ -307,8 +362,6 @@ def merge_dicts(dict1: dict, dict2: dict):
         else:
             dict1[key] = value
 
-    return dict1
-
 # compares dictionary stored values, returns false if stored values are different
 def compare_dicts(large_dict: dict, smaller_dict: dict):
     for key, value in smaller_dict.items():
@@ -361,7 +414,7 @@ def save_prompt(command: object, save: dict, _dosave=None):
 
 # switches which menu page is displayed
 def navigate_menu(page: str, *args):
-    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, joint_offset_thread, sensor_matrix_thread, brightness_slider
+    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, sensor_matrix_thread, brightness_slider
 
     # open new widow based on preset
     if page == "main":
@@ -374,6 +427,10 @@ def navigate_menu(page: str, *args):
             "",
             ["Jog Machine »", lambda *_: navigate_menu("jog")],
             "",
+            ["New Game", lambda *_: new_game()],
+            "",
+            ["End Game", lambda *_: end_game()],
+            "",
             connect_toggle,
             vertical_align=0,
             is_static=True,
@@ -382,6 +439,15 @@ def navigate_menu(page: str, *args):
         )
 
     if page == "settings":
+
+        # make sure a game isn't in progress
+        if serial_interface.game_state == "inactive":
+            pass
+
+        else:
+            menu_prompt(("[app.title]Game Running", "", "[app.label]Unable to access page,", "[app.label]a chess game is in progress..."), {"Ok": None})
+            return
+        
         new_menu = ptg.Window(
             "[app.title]Settings",
             "",
@@ -498,6 +564,15 @@ def navigate_menu(page: str, *args):
         brightness_slider.value = settings["led-strip"]["brightness"] / 255
         ptg.tim.define("!brightness", lambda *_: str(round(brightness_slider.value * 255)))
 
+        macro_buttons = []
+        for macro in settings["led-strip"]["macros"].keys():
+            
+            macro_buttons.append([f"{settings['led-strip']['macros'][macro]['label']} »", lambda x, led_macro=macro: save_prompt(lambda *_: navigate_menu("led_macro_settings", led_macro),
+                                              save={"led-strip": {
+                                                  "brightness": round(brightness_slider.value * 255)
+                                                  }})])
+            macro_buttons.append("")
+
         # create the page
         new_menu = ptg.Window(
             "[app.title]LED Settings",
@@ -515,36 +590,7 @@ def navigate_menu(page: str, *args):
                 relative_width=0.6
             ),
             "",
-            ["Idle Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Idle Macro", "idle"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
-            ["Countdown Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Countdown Macro", "countdown"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
-            ["WLD Stats Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "WLD Stats Macro", "wld-stats"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
-            ["Capture Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Capture Macro", "capture"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
-            ["Win Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Win Macro", "win"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
-            ["Lose Macro »", lambda *_: save_prompt(lambda *_: navigate_menu("led_macro_settings", "Lose Macro", "lose"),
-                                              save={"led-strip": {
-                                                  "brightness": round(brightness_slider.value * 255)
-                                                  }})],
-            "",
+            *macro_buttons,
             ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
                                               save={"led-strip": {
                                                   "brightness": round(brightness_slider.value * 255)
@@ -556,54 +602,58 @@ def navigate_menu(page: str, *args):
         )
 
     if page == "led_macro_settings":
-
-        effect_input = ptg.InputField(value=settings["led-strip"][args[1]]["effect"],
+        
+        effect_input = ptg.InputField(value=settings["led-strip"]["macros"][args[0]]["effect"],
                                        prompt="Effect: ")
 
         speed_slider = ptg.Slider()
-        speed_slider.value = (settings["led-strip"][args[1]]["speed"] / 255)
+        speed_slider.value = (settings["led-strip"]["macros"][args[0]]["speed"] / 255)
         ptg.tim.define("!effect_speed", lambda *_: str(round(speed_slider.value * 255)))
 
         intensity_slider = ptg.Slider()
-        intensity_slider.value = (settings["led-strip"][args[1]]["intensity"] / 255)
+        intensity_slider.value = (settings["led-strip"]["macros"][args[0]]["intensity"] / 255)
         ptg.tim.define("!effect_intensity", lambda *_: str(round(intensity_slider.value * 255)))
 
-        pallet1_matrix = ptg.PixelMatrix(4, 3, default=f"{settings['led-strip'][args[1]]['pallet']['1'][0]};{settings['led-strip'][args[1]]['pallet']['1'][1]};{settings['led-strip'][args[1]]['pallet']['1'][2]}")
+        reverse_toggle = ptg.Toggle(("Reversed: True", "Reversed: False"))
+        if not settings["led-strip"]["macros"][args[0]]["reversed"]:
+            reverse_toggle.toggle()
+
+        pallet1_matrix = ptg.PixelMatrix(4, 3, default=f"{settings['led-strip']['macros'][args[0]]['pallet']['1'][0]};{settings['led-strip']['macros'][args[0]]['pallet']['1'][1]};{settings['led-strip']['macros'][args[0]]['pallet']['1'][2]}")
         
-        pallet2_matrix = ptg.PixelMatrix(4, 3, default=f"{settings['led-strip'][args[1]]['pallet']['2'][0]};{settings['led-strip'][args[1]]['pallet']['2'][1]};{settings['led-strip'][args[1]]['pallet']['2'][2]}")
+        pallet2_matrix = ptg.PixelMatrix(4, 3, default=f"{settings['led-strip']['macros'][args[0]]['pallet']['2'][0]};{settings['led-strip']['macros'][args[0]]['pallet']['2'][1]};{settings['led-strip']['macros'][args[0]]['pallet']['2'][2]}")
 
         pallet1_red_slider = ptg.Slider()
-        pallet1_red_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][0] / 255)
+        pallet1_red_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][0] / 255)
         pallet1_red_slider.styles.unfilled = "80;0;0"
         pallet1_red_slider.styles.filled = "255;0;0"
         ptg.tim.define("!pallet_1r", lambda *_: str(round(pallet1_red_slider.value * 255)))
 
         pallet1_green_slider = ptg.Slider()
-        pallet1_green_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][1] / 255)
+        pallet1_green_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][1] / 255)
         pallet1_green_slider.styles.unfilled = "0;80;0"
         pallet1_green_slider.styles.filled = "0;255;0"
         ptg.tim.define("!pallet_1g", lambda *_: str(round(pallet1_green_slider.value * 255)))
 
         pallet1_blue_slider = ptg.Slider()
-        pallet1_blue_slider.value = (settings["led-strip"][args[1]]["pallet"]["1"][2] / 255)
+        pallet1_blue_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][2] / 255)
         pallet1_blue_slider.styles.unfilled = "0;0;80"
         pallet1_blue_slider.styles.filled = "0;0;255"
         ptg.tim.define("!pallet_1b", lambda *_: str(round(pallet1_blue_slider.value * 255)))
 
         pallet2_red_slider = ptg.Slider()
-        pallet2_red_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][0] / 255)
+        pallet2_red_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][0] / 255)
         pallet2_red_slider.styles.unfilled = "80;0;0"
         pallet2_red_slider.styles.filled = "255;0;0"
         ptg.tim.define("!pallet_2r", lambda *_: str(round(pallet2_red_slider.value * 255)))
 
         pallet2_green_slider = ptg.Slider()
-        pallet2_green_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][1] / 255)
+        pallet2_green_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][1] / 255)
         pallet2_green_slider.styles.unfilled = "0;80;0"
         pallet2_green_slider.styles.filled = "0;255;0"
         ptg.tim.define("!pallet_2g", lambda *_: str(round(pallet2_green_slider.value * 255)))
 
         pallet2_blue_slider = ptg.Slider()
-        pallet2_blue_slider.value = (settings["led-strip"][args[1]]["pallet"]["2"][2] / 255)
+        pallet2_blue_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][2] / 255)
         pallet2_blue_slider.styles.unfilled = "0;0;80"
         pallet2_blue_slider.styles.filled = "0;0;255"
         ptg.tim.define("!pallet_2b", lambda *_: str(round(pallet2_blue_slider.value * 255)))
@@ -635,7 +685,7 @@ def navigate_menu(page: str, *args):
 
         # create the page
         new_menu = ptg.Window(
-            f"[app.title]{args[0]}",
+            f"[app.title]{settings['led-strip']['macros'][args[0]]['label']}",
             "",
             ptg.Container(
                 effect_input,
@@ -646,6 +696,8 @@ def navigate_menu(page: str, *args):
                         effects
                     )
                 ),
+                "",
+                reverse_toggle,
                 "",
                 ptg.Splitter(
                     ptg.Label("[app.label]Speed:", parent_align=0),
@@ -692,6 +744,7 @@ def navigate_menu(page: str, *args):
                                                                         "effect": safe_str(effect_input.value, "blink"),
                                                                         "speed": round(speed_slider.value * 255),
                                                                         "intensity": round(intensity_slider.value * 255),
+                                                                        "reversed": reverse_toggle.checked,
                                                                         "pallet":{
                                                                             "1": [
                                                                                 round(pallet1_red_slider.value * 255),
@@ -709,22 +762,24 @@ def navigate_menu(page: str, *args):
             "",
             ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("led_settings"),
                                               save={"led-strip":{
-                                                    args[1]:{
-                                                        "effect": safe_str(effect_input.value, "blink"),
-                                                        "speed": round(speed_slider.value * 255),
-                                                        "intensity": round(intensity_slider.value * 255),
-                                                        "pallet":{
-                                                            "1": [
-                                                                round(pallet1_red_slider.value * 255),
-                                                                round(pallet1_green_slider.value * 255),
-                                                                round(pallet1_blue_slider.value * 255)
-                                                            ],
-                                                            "2": [
-                                                                round(pallet2_red_slider.value * 255),
-                                                                round(pallet2_green_slider.value * 255),
-                                                                round(pallet2_blue_slider.value * 255)
-                                                            ]
-                                                        }}}})],
+                                                    "macros": {
+                                                        args[0]:{
+                                                            "effect": safe_str(effect_input.value, "blink"),
+                                                            "speed": round(speed_slider.value * 255),
+                                                            "intensity": round(intensity_slider.value * 255),
+                                                            "reversed": reverse_toggle.checked,
+                                                            "pallet":{
+                                                                "1": [
+                                                                    round(pallet1_red_slider.value * 255),
+                                                                    round(pallet1_green_slider.value * 255),
+                                                                    round(pallet1_blue_slider.value * 255)
+                                                                ],
+                                                                "2": [
+                                                                    round(pallet2_red_slider.value * 255),
+                                                                    round(pallet2_green_slider.value * 255),
+                                                                    round(pallet2_blue_slider.value * 255)
+                                                                ]
+                                                            }}}}})],
             is_static=True,
             is_noresize=True,
             vertical_align=0,
@@ -732,6 +787,14 @@ def navigate_menu(page: str, *args):
         )
 
     if page == "jog":
+        
+        # make sure a game isn't in progress
+        if serial_interface.game_state == "inactive":
+            pass
+
+        else:
+            menu_prompt(("[app.title]Game Running", "", "[app.label]Unable to access page,", "[app.label]a chess game is in progress..."), {"Ok": None})
+            return
         
         # check to see if the hardware is connected
         if ser.is_open:
@@ -941,7 +1004,7 @@ def main():
 
     window_manager.layout = _define_layout()
     header = ptg.Window(
-        "[app.header]♘ ♗ ♖ ♕ ♔  Chess Bot  ♚ ♛ ♜ ♝ ♞",
+        "[app.header]♙ ♖ ♘ ♗ ♕ ♔  Chess Bot  ♚ ♛ ♝ ♞ ♜ ♟",
         box="EMPTY",
         is_static=True,
         is_noresize=True
@@ -958,17 +1021,20 @@ def main():
                 "",
                 ptg.Splitter(
                     ptg.Container(
-                    ptg.Label("[app.label][/bold][!machine_visuals] [/!]", parent_align=0, padding=2),
+                    ptg.Label("[app.label][/bold][!game_visuals] [/!]", parent_align=0, padding=2),
                     static_width=37,
                     box="EMPTY"
                     ),
                     ptg.Container(
-                        ptg.Label("[app.label][/bold][!machine_wdl_stats] [/!]"),
+                        ptg.Label("[app.label][/bold][!game_wdl_stats] [/!]"),
                         box="EMPTY"
                     )
                 )
             ),
-            ptg.Label("[app.label][!machine_status] [/!]", parent_align=0),
+            ptg.Splitter(
+                ptg.Label("[app.label] [!connection_status] [/!]", parent_align=0),
+                ptg.Label("[app.label][!game_status] [/!]   ", parent_align=2),
+            ),
             box="EMPTY",
             static_width=52
         ),
@@ -988,6 +1054,14 @@ def main():
 
     window_manager.run()
 
+# code to run after the program has finnished
+def on_exit():
+    if ser.is_open:
+        # push disconnected led animation
+        serial_interface.set_leds("disconnected")
+
+        ser.close()
 
 if __name__ == "__main__":
+    atexit.register(on_exit)
     main()

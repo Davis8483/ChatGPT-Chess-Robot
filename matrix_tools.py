@@ -1,4 +1,5 @@
 import subprocess
+import copy
 
 try:
     import numpy
@@ -9,6 +10,9 @@ except:
 
 # draw a line on a pixel matrix, (0, 0) is in the upper right corner 
 def draw_line(matrix, x1, y1, x2, y2, char):
+    
+    new_matrix = copy.deepcopy(matrix)
+
     # swap the endpoints if necessary so that we're always drawing right to left
     if x1 > x2:
         x1, x2 = x2, x1
@@ -27,7 +31,7 @@ def draw_line(matrix, x1, y1, x2, y2, char):
     while x1 != x2 or y1 != y2:
         # draw the pixel at (x1, y1)
         if 0 <= y1 < len(matrix) and 0 <= x1 < len(matrix[y1]):
-            matrix[y1][x1] = char * len(matrix[y1][x1])
+            new_matrix[y1][x1] = char * len(matrix[y1][x1])
 
         e2 = 2 * err
         if e2 > -dy:
@@ -37,7 +41,7 @@ def draw_line(matrix, x1, y1, x2, y2, char):
             err += dx
             y1 += sy
 
-    return matrix
+    return new_matrix
 
 
 
