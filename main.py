@@ -14,7 +14,7 @@ try:
     from safe_cast import *
 
 except:
-    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
+    subprocess.run(["pip", "install", "pytermgui==7.3.0", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
 
     import pyperclip
     import pytermgui as ptg
@@ -230,7 +230,7 @@ def new_game():
             menu_prompt(("[app.title]Restart Game?", "", "[app.label]A chess game is in progress,", "[app.label]do you want to restart?"), {"Yes": restart_game, "No": None})
         
         else:
-            chess_game_thread = continuous_threading.Thread(serial_interface.run_game)
+            chess_game_thread = continuous_threading.Thread(serial_interface.game_start)
             chess_game_thread.start()
     else:
         menu_prompt(("[app.title]Not Connected", "", "[app.label]Unable to start game,", "[app.label]chess robot not connected...", "", connect_toggle), {"Ok": None})
@@ -239,15 +239,15 @@ def new_game():
 def restart_game():
     global chess_game_thread
 
-    serial_interface.end_game()
+    serial_interface.game_end(do_exit=False)
 
-    chess_game_thread = continuous_threading.Thread(serial_interface.run_game)
+    chess_game_thread = continuous_threading.Thread(serial_interface.game_start)
     chess_game_thread.start()
 
 # stops the chess game
 def end_game():
     if serial_interface.game_state != "inactive":
-        menu_prompt(("[app.title]End Game?",), {"Yes": serial_interface.end_game, "No": None})
+        menu_prompt(("[app.title]End Game?",), {"Yes": lambda *_: serial_interface.game_end(do_exit=False), "No": None})
     
     else:
         menu_prompt(("[app.title]Cannot End", "", "[app.label]You cannot end a non-existent", "[app.label]chess game..."), {"Ok": None})
@@ -1004,7 +1004,7 @@ def main():
 
     window_manager.layout = _define_layout()
     header = ptg.Window(
-        "[app.header]♙ ♖ ♘ ♗ ♕ ♔  Chess Bot  ♚ ♛ ♝ ♞ ♜ ♟",
+        "[app.header]♙ ♖ ♘ ♗ ♕ ♔  ChatGPT Chess Bot  ♚ ♛ ♝ ♞ ♜ ♟",
         box="EMPTY",
         is_static=True,
         is_noresize=True
