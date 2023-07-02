@@ -24,7 +24,7 @@ except:
     from safe_cast import *
 
 # define window manager
-window_manager = ptg.WindowManager(framerate=30)
+window_manager = ptg.WindowManager(framerate=20)
 
 # load settings file
 with open('settings.json') as json_file:

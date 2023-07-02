@@ -46,6 +46,12 @@
         "volume": 15.0
       }
     ],
+    "check-alert": [
+      {
+        "path": "sounds/check-alert.mp3",
+        "volume": 1.0
+      }
+    ],
     "win": [
       {
         "path": "sounds/win/Children Yay!.mp3",

@@ -14,14 +14,16 @@ try:
     from safe_cast import *
     import chess
     import nltk
+    import continuous_threading
 
 except:
-    subprocess.run(["pip", "install", "stockfish", "numpy", "safe-cast", "chess", "nltk"])
+    subprocess.run(["pip", "install", "stockfish", "numpy", "safe-cast", "chess", "nltk", "continuous-threading"])
     import stockfish
     import numpy
     from safe_cast import *
     import chess
     import nltk
+    import continuous_threading
 
 # load settings file
 with open('settings.json') as json_file:
@@ -516,11 +518,7 @@ class SerialInterface():
         if not self.continue_game:
             self.game_end()
 
-        prev_snapshot = self.get_board(suppress_errors=True)
-        if prev_snapshot == None:
-            self.game_end()
-            self.continue_game = False
-
+        # used to detect castling
         self.castling_bishop_positions = {"e1g1": "h1f1",
                                         "e1c1": "a1d1",
                                         "e8g8": "h8f8",
@@ -771,7 +769,13 @@ class SerialInterface():
                 settings = json.load(json_file)
         except:
             pass 
-    
+        
+        try:
+            # stop the alert sound if playing
+            self.check_alert_thread.stop()
+        except:
+            pass
+
         # countdown timer to allow player to remove hand from board
         self.set_leds("countdown", custom_data={"index": 0}, suppress_errors=True)
         time.sleep(settings["game"]["countdown-duration"])
@@ -900,6 +904,10 @@ class SerialInterface():
         # detect check for bots side
         elif board.is_check():
 
+            # used to play an alert sound when in check
+            self.check_alert_thread = continuous_threading.ContinuousThread(play_sound.play_json_sound, args=("check-alert", True,))
+            
+            self.check_alert_thread.start()
             self.speak(chatGPT.get_response("You put your opponent in check."))
 
         # detect capture
@@ -907,14 +915,20 @@ class SerialInterface():
 
             piece = self.capture[1].name.split("_")[1]
 
-            self.speak(chatGPT.get_response(f"You captured a {piece}"))   
-
+            self.speak(chatGPT.get_response(f"You captured a {piece}"))  
+            
         # switch to waiting for move
         self.game_waiting()
 
 
     def game_invalid(self):
         self.game_state = "invalid"
+
+        try:
+            # stop the alert sound if playing
+            self.check_alert_thread.stop()
+        except:
+            pass
 
         try:
             # load settings file
