@@ -572,7 +572,7 @@
         "label": "Invalid Move Macro",
         "effect": "gradient",
         "speed": 100,
-        "intensity": 74,
+        "intensity": 23,
         "reversed": false,
         "pallet": {
           "1": [
