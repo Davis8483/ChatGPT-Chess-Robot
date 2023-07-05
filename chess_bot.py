@@ -363,6 +363,23 @@ class SerialInterface():
 
         time.sleep(2)
 
+        # verify move was successful
+        board = self.get_board()
+
+        if board[move[1]][move[0]] or not board[move[3]][move[2]]:
+
+            # go back to waiting position
+            position = settings["board-positions"]["home"]["position"]
+            self.goto_position(x=position[0], y=position[1], grabber="closed", suppress_errors=True)
+
+            prompt_queue.put((("[app.title]Fix Board", "", "[app.label]Failed to make move,", f"[app.label]please move from {move[0]}{move[1]} to {move[2]}{move[3]}"), {"Ok": None}))
+
+            self.speak(f"Failed to make move, please move from {move[0]}{move[1]} to {move[2]}{move[3]}")
+
+            # wait until board is fixed
+            while board[move[1]][move[0]] or not board[move[3]][move[2]] and self.continue_game:
+                board = self.get_board()
+
     def remove_piece(self, square):
         # pick up piece
         position = settings["board-positions"][square[1]][square[0]]
@@ -389,6 +406,26 @@ class SerialInterface():
 
         # close grabber
         self.goto_position(grabber="closed")
+
+        # verify removal was successful
+        board = self.get_board()
+
+        if board[square[1]][square[0]]:
+
+            prompt_queue.put((("[app.title]Fix Board", "", "[app.label]Failed to remove piece,", f"[app.label]please remove {square[0]}{square[1]}"), {"Ok": None}))
+
+            self.speak(f"Failed to remove piece, please remove {square[0]}{square[1]}")
+
+            # wait until board is fixed
+            while board[square[1]][square[0]] and self.continue_game:
+                board = self.get_board()
+
+            # countdown timer to allow player to remove hand from board
+            self.set_leds("countdown", custom_data={"index": 0}, suppress_errors=True)
+            time.sleep(settings["game"]["countdown-duration"])
+
+            # switch leds back
+            self.set_leds("making-move")
 
     def speak(self, text: str):
         global settings
@@ -849,7 +886,7 @@ class SerialInterface():
             board_changes = []
 
             # wait until piece is swapped out
-            while self.pawn_promotion[0] == True:
+            while self.pawn_promotion[0] and self.continue_game:
                 # get board snapshot
                 board_snapshot = self.get_board()
 
@@ -864,20 +901,20 @@ class SerialInterface():
                             if board_snapshot[row][square] != prev_snapshot[row][square]:
                                 board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
 
-                if len(board_changes) > 1:
-                
-                    # make sure no other moves are being made
-                    for index in board_changes:
-                        if (index[0] != self.pawn_promotion[1][1]):
-
-                            self.game_invalid()
-
-                    board_changes = []
+                    if len(board_changes) > 1:
                     
-                    sf_move = "".join(self.pawn_promotion[1])
-                    self.pawn_promotion = (False, "")
+                        # make sure no other moves are being made
+                        for index in board_changes:
+                            if (index[0] != self.pawn_promotion[1][1]):
 
-                prev_snapshot = board_snapshot
+                                self.game_invalid()
+
+                        board_changes = []
+                        
+                        sf_move = "".join(self.pawn_promotion[1])
+                        self.pawn_promotion = (False, "")
+
+                    prev_snapshot = board_snapshot
 
 
         sf.make_moves_from_current_position([sf_move])
