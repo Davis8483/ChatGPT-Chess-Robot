@@ -4,6 +4,8 @@ import chess_bot
 import webbrowser
 import atexit
 import time
+import board_visual_popout
+import platform
 
 try:
     import pyperclip
@@ -22,6 +24,10 @@ except:
     import serial.tools.list_ports
     import continuous_threading
     from safe_cast import *
+
+if platform.system() != "Windows":
+    ptg.tim.print("[bold red]This program requires a windows machine to run...[/]")
+    quit()
 
 # define window manager
 window_manager = ptg.WindowManager(framerate=20)
@@ -252,6 +258,16 @@ def end_game():
     else:
         menu_prompt(("[app.title]Cannot End", "", "[app.label]You cannot end a non-existent", "[app.label]chess game..."), {"Ok": None})
 
+def popout_board():
+
+    if chess_bot.board_popout_window.is_open:
+        menu_prompt(("[app.title]Can't Open Window", "", "[app.label]A board pop-out window,", "[app.label]already exists..."), {"Ok": None})
+
+    else:
+
+        chess_bot.board_popout_window.show()
+
+    
 # creates a custom alert menu
 # example call: menu_prompt(("[app.title]Test Prompt", ""), {"Ok": my_function})
 prompt_alerts = []
@@ -430,6 +446,8 @@ def navigate_menu(page: str, *args):
             ["New Game", lambda *_: new_game()],
             "",
             ["End Game", lambda *_: end_game()],
+            "",
+            ["Pop-out Board", lambda *_: popout_board()],
             "",
             connect_toggle,
             vertical_align=0,

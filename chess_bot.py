@@ -7,6 +7,7 @@ import queue
 import pyttsx3 # library is stored localy because of a bug with the original
 import chatGPT
 import play_sound
+import board_visual_popout
 
 try:
     import stockfish
@@ -39,17 +40,14 @@ except:
 # stores menu prompts to be handeled by the gui in main.py
 prompt_queue = queue.Queue()
 
-stockfish_ready = False
-
 # initialize stockfish chess engine
-for index in settings["stockfish"]["binaries"]:
-    try:
-        sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{index}")
+stockfish_ready = False
+try:
+    sf = stockfish.Stockfish(path=f"{os.path.dirname(os.path.abspath(__file__))}{settings['stockfish']['path']}")
 
-        stockfish_ready = True
-        break # a working stockfish binary is found so we can stop testing candidates
+    stockfish_ready = True
 
-    except: pass
+except: pass
 
 if not stockfish_ready:
     # binary not found, notify user and prompt them to quit
@@ -68,6 +66,9 @@ if stockfish_ready:
 else:
     wdl_stats = [0, 1000, 0]
     board_visual = ""
+
+# initialize board svg window
+board_popout_window = board_visual_popout.Visual()
 
 # returns wdl stats in the form of a bar visuas
 def get_stats_visual():
@@ -442,6 +443,9 @@ class SerialInterface():
 
         # executed every time a word is said if talking animation is enabled
         def onWord(name, location, length):
+
+            # clear other outbound talking motions
+            self.serial.reset_output_buffer()
             
             # find word using positioning info
             word = "".join(filter(str.isalpha, text[location:(location + length)])).lower()
@@ -481,9 +485,11 @@ class SerialInterface():
         # connect talking animation
         if settings["tts"]["talking-animation"]:
             tts_engine.connect('started-word', onWord)
+            tts_engine.connect('finished-utterance', self.serial.reset_output_buffer)
 
         else:
             tts_engine.disconnect('started-word')
+            tts_engine.disconnect('finished-utterance', self.serial.reset_output_buffer)
 
         # set voice
         voices = tts_engine.getProperty('voices')
@@ -544,6 +550,7 @@ class SerialInterface():
         # reset stockfish board
         sf.set_fen_position(settings["game"]["starting-fen"])
         board_visual = sf.get_board_visual()
+        board_popout_window.update(sf.get_fen_position())
 
         # make sure all pieces are in their starting position
         self.prepare_board()
@@ -658,6 +665,9 @@ class SerialInterface():
                                     # make move
                                     sf.make_moves_from_current_position(["".join(index)])
                                     board_visual = sf.get_board_visual()
+
+                                    # update board popout window
+                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
                                 
                                     self.game_moving()
 
@@ -703,6 +713,9 @@ class SerialInterface():
 
                             board_visual = sf.get_board_visual()
 
+                            # update board popout window
+                            board_popout_window.update(sf.get_fen_position(), lastmove="".join(self.pawn_promotion[1]))
+
                             self.pawn_promotion = (False, [""])
 
                             self.game_moving()
@@ -742,6 +755,9 @@ class SerialInterface():
                                     sf.make_moves_from_current_position(["".join(index)])
                                     board_visual = sf.get_board_visual()
 
+                                    # update board popout window
+                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
+
                                 # check for pawn promotion then enable it
                                 elif ("PAWN" in str(sf.get_what_is_on_square(index[0]))) and (("1" in index[1]) or ("8" in index[1])):
                                     self.pawn_promotion = (True, index[0:2])
@@ -759,12 +775,18 @@ class SerialInterface():
                                     sf.make_moves_from_current_position(["".join(index)])
                                     board_visual = sf.get_board_visual()
 
+                                    # update board popout window
+                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
+
                                     self.game_moving()
 
 
                             # check if piece didn't move position
                             elif index[0] == index[1]:
                                 valid_move = True
+
+                                # hide possible moves for that piece
+                                board_popout_window.update(sf.get_fen_position())
 
                                 board_changes = []
 
@@ -775,7 +797,14 @@ class SerialInterface():
                         self.game_invalid()
 
 
-                elif ((len(board_changes) == 1) and not board_changes[0][1]) or (len(board_changes) == 0):
+                elif (len(board_changes) == 1) and not board_changes[0][1]:
+
+                    # show possible moves on popout window
+                    # this current loop is time sensitive so use a thread
+                    t = continuous_threading.Thread(board_popout_window.update, args=(sf.get_fen_position(), None, None, board_changes[0][0]))
+                    t.start()
+
+                elif len(board_changes) == 0:
                     pass # do nothing
 
                 else:
@@ -834,6 +863,11 @@ class SerialInterface():
 
         # detect check for bots side
         elif board.is_check():
+
+            king_square = board.king(chess.BLACK)
+
+            # show the king is in check on the board visual popout
+            board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
 
             self.speak(chatGPT.get_response("Your opponent put you in check."))
 
@@ -921,6 +955,12 @@ class SerialInterface():
 
         board_visual = sf.get_board_visual()
 
+        # update board visual popout
+        board_popout_window.update(sf.get_fen_position())
+
+        # update board popout window
+        board_popout_window.update(sf.get_fen_position(), lastmove=sf_move)
+
         # play sound effects
         if self.capture[0]:
             play_sound.play_json_sound("capture")
@@ -940,6 +980,11 @@ class SerialInterface():
 
         # detect check for bots side
         elif board.is_check():
+
+            king_square = board.king(chess.WHITE)
+
+            # show the king is in check on the board visual popout
+            board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
 
             # used to play an alert sound when in check
             self.check_alert_thread = continuous_threading.ContinuousThread(play_sound.play_json_sound, args=("check-alert", True,))
