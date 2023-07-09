@@ -1220,6 +1220,8 @@ def navigate_menu(page: str, *args):
             ptg.Container(
                 message_input,
                 "",
+                ["Paste Message", lambda *_: message_input.insert_text(pyperclip.paste())],
+                "",
                 ["Speak", lambda *_: serial_interface.speak(message_input.value)],
                 relative_width=0.6
             ),
