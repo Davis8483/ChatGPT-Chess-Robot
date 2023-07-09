@@ -73,7 +73,7 @@ def get_response(message):
     timed_thread.start()
 
     # wait until thread is done or timout occours
-    timed_thread.join(timeout=settings["gpt"]["timeout"])
+    timed_thread.join(timeout=settings["gpt"]["request-timeout"])
 
     if isinstance(api_response, Exception):
         return f"Error: {api_response}"

@@ -4,7 +4,6 @@ import chess_bot
 import webbrowser
 import atexit
 import time
-import board_visual_popout
 import platform
 
 try:
@@ -475,6 +474,10 @@ def navigate_menu(page: str, *args):
             "",
             ["LED Strip »", lambda *_: navigate_menu("led_settings")],
             "",
+            ["Game »", lambda *_: navigate_menu("game_settings")],
+            "",
+            ["TTS »", lambda *_: navigate_menu("tts_settings")],
+            "",
             ["Open File", lambda *_: webbrowser.open("settings.json")],
             "",
             ["« Back", lambda *_: navigate_menu("main")],
@@ -486,9 +489,30 @@ def navigate_menu(page: str, *args):
 
     if page == "gpt_settings":
         api_key_input = ptg.InputField(
-            value=settings["gpt"]["api-key"], prompt="API key: ")
+            value=settings["gpt"]["api-key"], prompt="API key: "
+        )
+
         prompt_input = ptg.InputField(
-            value=settings["gpt"]["prompt"], prompt="Prompt: ")
+            value=settings["gpt"]["prompt"],
+            prompt="Prompt: "
+        )
+        
+        temperature_slider = ptg.Slider()
+        temperature_slider.value = settings["gpt"]["temperature"] / 2
+        ptg.tim.define("!temperature", lambda *_: str(round((temperature_slider.value * 2), 1)))
+
+        presence_penalty_slider = ptg.Slider()
+        presence_penalty_slider.value = (settings["gpt"]["presence-penalty"] / 4) + 0.5
+        ptg.tim.define("!presence-penalty", lambda *_: str(round(((presence_penalty_slider.value - 0.5) * 4), 1)))
+
+        frequency_penalty_slider = ptg.Slider()
+        frequency_penalty_slider.value = (settings["gpt"]["frequency-penalty"] / 4) + 0.5
+        ptg.tim.define("!frequency-penalty", lambda *_: str(round(((frequency_penalty_slider.value - 0.5) * 4), 1)))
+
+        request_timeout_input = ptg.InputField(
+            value=str(settings["gpt"]["request-timeout"]), 
+            prompt="Request Timeout (sec): "
+        )
 
         new_menu = ptg.Window(
             "[app.title]ChatGPT Settings",
@@ -500,6 +524,26 @@ def navigate_menu(page: str, *args):
                 "",
                 ["Paste Key", lambda *_: api_key_input.insert_text(pyperclip.paste())],
                 "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Temperature:", parent_align=0),
+                    ptg.Label("[!temperature] [/!]",parent_align=2)
+                ),
+                temperature_slider,
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Presence Penalty:", parent_align=0),
+                    ptg.Label("[!presence-penalty] [/!]",parent_align=2)
+                ),
+                presence_penalty_slider,
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Frequency Penalty:", parent_align=0),
+                    ptg.Label("[!frequency-penalty] [/!]",parent_align=2)
+                ),
+                frequency_penalty_slider,
+                "",
+                request_timeout_input,
+                "",
                 prompt_input,
                 relative_width=0.6
             ),
@@ -508,7 +552,11 @@ def navigate_menu(page: str, *args):
                                               save={
                                                   "gpt": {
                                                       "api-key": safe_str(api_key_input.value, ""),
-                                                      "prompt": safe_str(prompt_input.value, "")
+                                                      "prompt": safe_str(prompt_input.value, ""),
+                                                      "temperature": round((temperature_slider.value * 2), 1),
+                                                      "presence-penalty": round(((presence_penalty_slider.value - 0.5) * 4), 1),
+                                                      "frequency-penalty": round(((frequency_penalty_slider.value - 0.5) * 4), 1),
+                                                      "request-timeout": safe_float(request_timeout_input.value, 1, 10)
                                                       }})],
             is_static=True,
             is_noresize=True,
@@ -517,14 +565,45 @@ def navigate_menu(page: str, *args):
         )
 
     if page == "hardware_settings":
-        serial_port_input = ptg.InputField(value=str(settings["hardware"]["serial-port"]), prompt="Serial Port: ")
-        baud_rate_input = ptg.InputField(value=str(settings["hardware"]["baud-rate"]), prompt="Baud Rate: ")
+        serial_port_input = ptg.InputField(
+            value=str(settings["hardware"]["serial-port"]),
+            prompt="Serial Port: "
+        )
+        
+        baud_rate_input = ptg.InputField(
+            value=str(settings["hardware"]["baud-rate"]),
+            prompt="Baud Rate: "
+        )
 
-        arm1_length_input = ptg.InputField(value=str(settings["hardware"]["length-arm-1"]), prompt="Arm 1 Length (mm): ")
-        arm2_length_input = ptg.InputField(value=str(settings["hardware"]["length-arm-2"]), prompt="Arm 2 Length (mm): ")
+        arm1_length_input = ptg.InputField(
+            value=str(settings["hardware"]["length-arm-1"]),
+            rompt="Arm 1 Length (mm): "
+        )
 
-        grabber_open_input = ptg.InputField(value=str(settings["hardware"]["grabber-open-angle"]), prompt="Grabber Open Angle: ")
-        grabber_closed_input = ptg.InputField(value=str(settings["hardware"]["grabber-closed-angle"]), prompt="Grabber Closed Angle: ")
+        arm2_length_input = ptg.InputField(
+            value=str(settings["hardware"]["length-arm-2"]),
+            prompt="Arm 2 Length (mm): "
+        )
+
+        grabber_open_input = ptg.InputField(
+            value=str(settings["hardware"]["grabber-open-angle"]),
+            prompt="Grabber Open Angle: "
+        )
+
+        grabber_closed_input = ptg.InputField(
+            value=str(settings["hardware"]["grabber-closed-angle"]),
+            prompt="Grabber Closed Angle: "
+        )
+
+        servo_speed_input = ptg.InputField(
+            value=str(settings["hardware"]["servo-speed-deg/sec"]),
+            prompt="Servo Speed (deg/sec): "
+        )
+
+        retraction_angle_input = ptg.InputField(
+            value=str(settings["hardware"]["retraction-angle"]),
+            prompt="Arm Retract Angle: "
+        )
 
         ports = ""
         for port, desc, hwid in sorted(serial.tools.list_ports.comports()):
@@ -558,6 +637,10 @@ def navigate_menu(page: str, *args):
                 grabber_open_input,
                 "",
                 grabber_closed_input,
+                "",
+                servo_speed_input,
+                "",
+                retraction_angle_input,
                 relative_width=0.6
             ),
             "",
@@ -565,10 +648,12 @@ def navigate_menu(page: str, *args):
                                               save={"hardware": {
                                                     "serial-port": safe_str(serial_port_input.value, ""),
                                                     "baud-rate": safe_int(baud_rate_input.value, 0),
-                                                    "length-arm-1": safe_float(arm1_length_input.value, 2, 0.0),
-                                                    "length-arm-2": safe_float(arm2_length_input.value, 2, 0.0),
-                                                    "grabber-open-angle": safe_int(grabber_open_input.value, 0),
-                                                    "grabber-closed-angle": safe_int(grabber_closed_input.value, 0)
+                                                    "length-arm-1": safe_float(arm1_length_input.value, 2, 10),
+                                                    "length-arm-2": safe_float(arm2_length_input.value, 2, 10),
+                                                    "grabber-open-angle": safe_int(grabber_open_input.value, 90),
+                                                    "grabber-closed-angle": safe_int(grabber_closed_input.value, 90),
+                                                    "servo-speed-deg/sec": safe_int(servo_speed_input.value, 150),
+                                                    "retraction-angle": safe_int(retraction_angle_input.value, 130)
                                                     }})],
             is_static=True,
             is_noresize=True,
@@ -804,6 +889,124 @@ def navigate_menu(page: str, *args):
             title=f"Menu » Settings » LED Strip » {args[0]}"
         )
 
+    if page == "game_settings":
+
+        countdown_duration_input = ptg.InputField(
+            value=str(settings["game"]["countdown-duration"]),
+            prompt="Countdown Duration: "
+        )
+
+        bot_elo_slider = ptg.Slider()
+        bot_elo_slider.value = (settings["game"]["bot-elo"] / 3000)
+        ptg.tim.define("!bot-elo", lambda *_: str(round(bot_elo_slider.value * 3000)))
+
+        starting_fen_input = ptg.InputField(
+            value=str(settings["game"]["starting-fen"]),
+            prompt="Starting Fen: "
+        )
+
+        new_menu = ptg.Window(
+            "[app.title]Game Settings",
+            "",
+            ptg.Container(
+                countdown_duration_input,
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Bot Elo:", parent_align=0),
+                    ptg.Label("[!bot-elo] [/!]",parent_align=2)
+                ),
+                bot_elo_slider,
+                "",
+                starting_fen_input,
+                "",
+                ["Paste Fen", lambda *_: starting_fen_input.insert_text(pyperclip.paste())],
+                "",
+                relative_width=0.6
+            ),
+            "",
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
+                                              save={
+                                                  "game": {
+                                                        "countdown-duration": safe_float(countdown_duration_input.value, 1, 5),
+                                                        "bot-elo": round(bot_elo_slider.value * 3000),
+                                                        "starting-fen": safe_str(starting_fen_input.value, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w")
+                                                  }
+                                              })],
+            is_static=True,
+            is_noresize=True,
+            vertical_align=0,
+            title="Menu » Settings » Game"
+        )
+
+    if page == "tts_settings":
+
+        voice_input = ptg.InputField(
+            value=settings["tts"]["voice"],
+            prompt="Voice: "
+        )
+
+        voices = ""
+        for voice in serial_interface.get_voices():
+            voices += f"\n[app.label]{voice}\n"
+    
+        if voices == "":
+            voices = "\nNone\n"
+
+        tts_volume_slider = ptg.Slider()
+        tts_volume_slider.value = settings["tts"]["volume"]
+        ptg.tim.define("!tts-volume", lambda *_: str(round(tts_volume_slider.value, 1)))
+
+        speech_rate_input = ptg.InputField(
+            value=str(settings["tts"]["rate-wpm"]),
+            prompt="Rate (WPM): "
+        )
+
+        speaking_animation_toggle = ptg.Toggle(("Animation: True", "Animation: False"))
+        if not settings["tts"]["talking-animation"]:
+            speaking_animation_toggle.toggle()
+
+        new_menu = ptg.Window(
+            "[app.title]TTS Settings",
+            "",
+            ptg.Container(
+                voice_input,
+                "",
+                ptg.Collapsible(
+                    "Available Voices",
+                    ptg.Container(
+                        voices
+                    )
+                ),
+                "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Volume:", parent_align=0),
+                    ptg.Label("[!tts-volume] [/!]",parent_align=2)
+                ),
+                tts_volume_slider,
+                "",
+                speech_rate_input,
+                "",
+                speaking_animation_toggle,
+                "",
+                relative_width=0.6
+            ),
+            "",
+            ["« Back", lambda *_: save_prompt(lambda *_: navigate_menu("settings"),
+                                              save={
+                                                  "tts": {
+                                                      "voice": safe_str(voice_input.value),
+                                                      "volume": round(tts_volume_slider.value, 1),
+                                                      "rate-wpm": safe_int(speech_rate_input.value, 130),
+                                                      "talking-animation": speaking_animation_toggle.checked
+                                                  }
+                                              })],
+            is_static=True,
+            is_noresize=True,
+            vertical_align=0,
+            title="Menu » Settings » TTS"
+        )
+
+
     if page == "jog":
         
         # make sure a game isn't in progress
@@ -914,6 +1117,8 @@ def navigate_menu(page: str, *args):
             "",
             ["Joint Offsets »", lambda *_: navigate_menu("joint_offsets")],
             "",
+            ["Speak Message »", lambda *_: navigate_menu("speak_message")],
+            "",
             ["« Back", lambda *_: navigate_menu("main")],
             is_static=True,
             is_noresie=True,
@@ -1000,6 +1205,31 @@ def navigate_menu(page: str, *args):
             vertical_align=0,
             horizontal_align=0,
             title="Menu » Calibrate » Joint Offsets"
+        )
+
+    
+    if page == "speak_message":
+
+        message_input = ptg.InputField(
+            prompt="Message: "
+        )
+
+        new_menu = ptg.Window(
+            "[app.title]Speak Message",
+            "",
+            ptg.Container(
+                message_input,
+                "",
+                ["Speak", lambda *_: serial_interface.speak(message_input.value)],
+                relative_width=0.6
+            ),
+            "",
+            ["« Back", lambda *_: navigate_menu("calibrate")],
+            is_static=True,
+            is_noresie=True,
+            vertical_align=0,
+            horizontal_align=0,
+            title="Menu » Calibrate » Speak Message"
         )
     
     # close the old menu window if open

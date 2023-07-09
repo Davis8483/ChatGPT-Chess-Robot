@@ -507,6 +507,19 @@ class SerialInterface():
 
         tts_engine.runAndWait()
 
+    def get_voices(self):
+        # initialize tts engine
+        tts_engine = pyttsx3.Engine()
+
+        voices = tts_engine.getProperty('voices')
+
+        voice_names = []
+
+        for index in voices:
+            voice_names.append(index.name)
+
+        return voice_names
+
     # make sure all pieces are in their starting position, keep prompting user until this happens
     def prepare_board(self):
         
@@ -609,6 +622,8 @@ class SerialInterface():
         wdl_stats = sf.get_wdl_stats()
         self.set_leds("wld-stats", custom_data={"intensity": round(((wdl_stats[0] + (wdl_stats[1] / 2)) * 255) / 1000)}, suppress_errors=True)
         
+        moves_shown = False
+
         while self.continue_game:
 
             # get board snapshot
@@ -788,6 +803,8 @@ class SerialInterface():
                                 # hide possible moves for that piece
                                 board_popout_window.update(sf.get_fen_position())
 
+                                moves_shown = False
+
                                 board_changes = []
 
                         if not valid_move:
@@ -799,10 +816,13 @@ class SerialInterface():
 
                 elif (len(board_changes) == 1) and not board_changes[0][1]:
 
-                    # show possible moves on popout window
-                    # this current loop is time sensitive so use a thread
-                    t = continuous_threading.Thread(board_popout_window.update, args=(sf.get_fen_position(), None, None, board_changes[0][0]))
-                    t.start()
+                    if not moves_shown:
+                        # show possible moves on popout window
+                        # run it in a seperate thread
+                        t = continuous_threading.Thread(board_popout_window.update, args=(sf.get_fen_position(), None, None, board_changes[0][0]))
+                        t.start()
+
+                        moves_shown = True
 
                 elif len(board_changes) == 0:
                     pass # do nothing
