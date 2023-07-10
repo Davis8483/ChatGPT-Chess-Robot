@@ -12,16 +12,6 @@ except:
     import openai
     import openai.error
 
-try:
-    # load settings file
-    with open('settings.json') as json_file:
-        settings = json.load(json_file)
-except:
-    pass
-
-# set api key
-openai.api_key = settings["gpt"]["api-key"]
-
 # resets chat history to default
 def reset_history():
     global message_history
@@ -47,6 +37,9 @@ def get_response(message):
             settings = json.load(json_file)
     except:
         pass
+
+    # set api key
+    openai.api_key = settings["gpt"]["api-key"]
     
     my_message = {"role": "user", "content": message}
 
