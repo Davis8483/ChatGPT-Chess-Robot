@@ -554,6 +554,9 @@ class SerialInterface():
         while self.continue_game:
             time.sleep(1)
 
+        # additional delay
+        time.sleep(1)
+
         self.game_state = "starting"
         self.continue_game = True
 
@@ -606,7 +609,7 @@ class SerialInterface():
 
 
     def game_waiting(self):
-        global board_visual, wdl_stats
+        global board_visual, wdl_stats, best_moves
 
         self.game_state = "waiting"
 
@@ -623,6 +626,14 @@ class SerialInterface():
         self.set_leds("wld-stats", custom_data={"intensity": round(((wdl_stats[0] + (wdl_stats[1] / 2)) * 255) / 1000)}, suppress_errors=True)
         
         moves_shown = False
+
+        best_moves = []
+
+        if settings["game"]["top-move-count"] != 0:
+
+            # save top (n) best moves to determine if an insult should be thrown later on
+            for move in sf.get_top_moves(settings["game"]["top-move-count"]):
+                best_moves.append(move["Move"])
 
         while self.continue_game:
 
@@ -684,7 +695,7 @@ class SerialInterface():
                                     # update board popout window
                                     board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
                                 
-                                    self.game_moving()
+                                    self.game_moving(lastmove="".join(index))
 
                                 board_changes = []
                                 break
@@ -706,7 +717,7 @@ class SerialInterface():
 
                             self.castling = (False, [""])
 
-                            self.game_moving()
+                            self.game_moving(lastmove="".join(index))
 
                         else:
                             self.game_invalid()
@@ -733,7 +744,7 @@ class SerialInterface():
 
                             self.pawn_promotion = (False, [""])
 
-                            self.game_moving()
+                            self.game_moving(lastmove="".join(index))
 
                         else:
                             self.game_invalid()
@@ -793,7 +804,7 @@ class SerialInterface():
                                     # update board popout window
                                     board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
 
-                                    self.game_moving()
+                                    self.game_moving(lastmove="".join(index))
 
 
                             # check if piece didn't move position
@@ -846,7 +857,7 @@ class SerialInterface():
         # execution was terminated close the thread
         self.game_end()
 
-    def game_moving(self):
+    def game_moving(self, lastmove):
         global settings, board_visual
 
         try:
@@ -889,16 +900,11 @@ class SerialInterface():
             # show the king is in check on the board visual popout
             board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
 
-            self.speak(chatGPT.get_response("Your opponent put you in check."))
-
-        # detect capture
-        elif self.capture[0]:
-
-            piece = self.capture[1].name.split("_")[1]
-
-            self.speak(chatGPT.get_response(f"Your opponent captured a {piece}"))
-
         self.capture = (False, "")
+
+        # insult the player if they made a bad move
+        if not lastmove in best_moves:
+            self.speak(chatGPT.get_response(f"Your opponent has just made a bad move from {lastmove}"))
 
         # generate the best move using stockfish
         sf_move = sf.get_best_move()
@@ -1010,14 +1016,6 @@ class SerialInterface():
             self.check_alert_thread = continuous_threading.ContinuousThread(play_sound.play_json_sound, args=("check-alert", True,))
             
             self.check_alert_thread.start()
-            self.speak(chatGPT.get_response("You put your opponent in check."))
-
-        # detect capture
-        elif self.capture[0]:
-
-            piece = self.capture[1].name.split("_")[1]
-
-            self.speak(chatGPT.get_response(f"You captured a {piece}"))  
             
         # switch to waiting for move
         self.game_waiting()

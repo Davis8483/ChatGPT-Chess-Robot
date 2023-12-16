@@ -900,6 +900,10 @@ def navigate_menu(page: str, *args):
         bot_elo_slider.value = (settings["game"]["bot-elo"] / 3000)
         ptg.tim.define("!bot-elo", lambda *_: str(round(bot_elo_slider.value * 3000)))
 
+        top_move_count_slider = ptg.Slider()
+        top_move_count_slider.value = (settings["game"]["top-move-count"] / 10)
+        ptg.tim.define("!top_move_count", lambda *_: str(round(top_move_count_slider.value * 10)))
+
         starting_fen_input = ptg.InputField(
             value=str(settings["game"]["starting-fen"]),
             prompt="Starting Fen: "
@@ -917,10 +921,17 @@ def navigate_menu(page: str, *args):
                 ),
                 bot_elo_slider,
                 "",
+                ptg.Splitter(
+                    ptg.Label("[app.label]Top Move Count Before Insult:", parent_align=0),
+                    ptg.Label("[!top_move_count] [/!]",parent_align=2)
+                ),
+                top_move_count_slider,
+                "",
                 starting_fen_input,
                 "",
                 ["Paste Fen", lambda *_: starting_fen_input.insert_text(pyperclip.paste())],
                 "",
+
                 relative_width=0.6
             ),
             "",
@@ -929,7 +940,8 @@ def navigate_menu(page: str, *args):
                                                   "game": {
                                                         "countdown-duration": safe_float(countdown_duration_input.value, 1, 5),
                                                         "bot-elo": round(bot_elo_slider.value * 3000),
-                                                        "starting-fen": safe_str(starting_fen_input.value, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w")
+                                                        "starting-fen": safe_str(starting_fen_input.value, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w"),
+                                                        "top-move-count": safe_int(top_move_count_slider.value * 10)
                                                   }
                                               })],
             is_static=True,
