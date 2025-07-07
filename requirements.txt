@@ -7,6 +7,6 @@ nltk
 continuous-threading
 sounddevice
 soundfile
-pytermgui==7.3.0
+pytermgui
 pyserial
 pyperclip
