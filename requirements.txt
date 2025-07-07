@@ -1,0 +1,12 @@
+openai
+stockfish
+numpy
+safe-cast
+chess
+nltk
+continuous-threading
+sounddevice
+soundfile
+pytermgui==7.3.0
+pyserial
+pyperclip
