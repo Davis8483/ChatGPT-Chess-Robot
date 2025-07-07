@@ -4,13 +4,11 @@ import threading
 
 try:
     import openai
-    import openai.error
 
 except:
     subprocess.run(["pip", "install", "openai"])
 
     import openai
-    import openai.error
 
 # resets chat history to default
 def reset_history():
