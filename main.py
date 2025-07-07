@@ -15,7 +15,7 @@ try:
     from safe_cast import *
 
 except:
-    subprocess.run(["pip", "install", "pytermgui==7.3.0", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
+    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
 
     import pyperclip
     import pytermgui as ptg
