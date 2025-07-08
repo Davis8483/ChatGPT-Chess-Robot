@@ -1,4 +1,6 @@
 from pi_pico_neopixel.neopixel import Neopixel
+from serial_protocal import LedEffect
+from typing import Callable
 
 class effects():
     
@@ -16,7 +18,7 @@ class effects():
 
         for i in range(self.strip_length):
 
-            color = Neopixel.colorHSV(Neopixel, hue, 255, 150)
+            color = Neopixel.colorHSV(Neopixel, hue, 255, 150) # type: ignore
             leds.append(color)
             
             if intensity != 0:
@@ -197,14 +199,14 @@ class effects():
         self.stats_prev_index = index
 
         return leds
-
-
-    fx_list = {
-        "rainbow": rainbow, # rainbow waves
-        "blink": blink, # flash between pallet colors 1 and 2
-        "glow": glow, # transition between pallet colors 1 and 2
-        "fade": fade, # fade pallet color 1 in while fading color 2 out
-        "chase": chase, # two colors chasing after each other
-        "gradient": gradient, # motion transition between colors 1 and 2
-        "wld-stats": stats # two colors with smooth transitions, used to display who is winning/losing
-    }
+    
+    def get_effect(self, effect: LedEffect) -> Callable[[float, int], list]:
+        return {
+            LedEffect.RAINBOW: self.rainbow,
+            LedEffect.BLINK: self.blink,
+            LedEffect.GLOW: self.glow,
+            LedEffect.FADE: self.fade,
+            LedEffect.CHASE: self.chase,
+            LedEffect.GRADIENT: self.gradient,
+            LedEffect.WLD_STATS: self.stats
+        }.get(effect, self.glow)
