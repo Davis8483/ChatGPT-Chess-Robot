@@ -1,10 +1,9 @@
 from pi_pico_neopixel.neopixel import Neopixel
 from serial_protocal import LedEffect
-from typing import Callable
 
 class effects():
     
-    def __init__(self, length: int):
+    def __init__(self, length):
         self.strip_length = length
         self.stats_pos = round(length / 2)
         self.stats_prev_index = 0
@@ -146,7 +145,7 @@ class effects():
         return leds
 
     # used to display win/lose/draw stats of the chess game
-    def stats(self, index: int, intensity: int):
+    def stats(self, index: float, intensity: int):
         leds = []
 
         # add one to intensity so calculations don't break if 0
@@ -200,8 +199,8 @@ class effects():
 
         return leds
     
-    def get_effect(self, effect: LedEffect) -> Callable[[float, int], list]:
-        return {
+    def get_effect(self, effect):
+        effect_map = {
             LedEffect.RAINBOW: self.rainbow,
             LedEffect.BLINK: self.blink,
             LedEffect.GLOW: self.glow,
@@ -209,4 +208,5 @@ class effects():
             LedEffect.CHASE: self.chase,
             LedEffect.GRADIENT: self.gradient,
             LedEffect.WLD_STATS: self.stats
-        }.get(effect, self.glow)
+        }
+        return effect_map.get(effect, self.glow)

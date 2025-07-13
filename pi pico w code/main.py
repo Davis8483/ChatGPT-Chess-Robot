@@ -1,10 +1,13 @@
 import machine
 import json
 import time
+import gc
+import select
+import sys
 import _thread
 from pi_pico_neopixel.neopixel import Neopixel
 import led_tools
-from serial_protocal import BoardData, ProtocalInboundData, LedData, ProtocalOutboundData, ResponseType
+from serial_protocal import BoardData, ProtocalInboundData, LedData, ProtocalOutboundData, ReturnRequestType
 
 # ---------- Config Start ----------
 # servo
@@ -26,8 +29,6 @@ loop_delay = 50 # milliseconds
 # ---------- Config End ----------
 
 current_z_pos = 0
-
-uart = machine.UART(0, baudrate=115200, tx=2, rx=3) # UART0 on pins 2 and 3
 
 # servo pin setup
 z_axis_servo = machine.PWM(machine.Pin(0, machine.Pin.OUT))
@@ -92,57 +93,76 @@ def serial_communication_thread():
     if serialData.leds:
       led_state_data = LedData(from_json=json.dumps(serialData.leds))
 
+    if serialData.flushStateChanges:
+      # if flushStateChanges is set to true, clear the state changes
+      board_data.stateChanges.clear()
+
+    if serialData.returnData:
+
+      if serialData.returnData == ReturnRequestType.BOARD_DATA:
+        outbound_data = ProtocalOutboundData(board_data=board_data)
+
+      elif serialData.returnData == ReturnRequestType.LED_EFFECTS_LIST:
+        outbound_data = ProtocalOutboundData(include_led_effects=True)
+
+      if serialData.returnData != ReturnRequestType.NONE:
+        sys.stdout.write(json.dumps(outbound_data.to_dict()) + "\n")
+
   buffer = ""
-  boardStateChanges: list[tuple[str, bool]] = []
-  prev_snapshot = BoardData().update() # previous board snapshot to compare against
+  board_data = BoardData() # the current board state
+  prev_snapshot = board_data.update() # previous board snapshot to compare against
 
   while True:
     outbound_data = ProtocalOutboundData()
 
     try:
 
+      test_poll = select.poll()
+      test_poll.register(sys.stdin, select.POLLIN)
+
       # read serial data until a newline is received
-      if uart.any():
-        byte = uart.read(1)
+      if test_poll.poll(10):
+        char = sys.stdin.read(1)
 
-        if (byte):
-          char = byte.decode()
-          
-          if char == "\n":
-            buffer = ""
-            data_recieved(buffer.strip())
+        # if the character is a newline, process the buffer
+        if char == "\n":
+          data_recieved(buffer.strip())
+          buffer = ""
 
-          else:
-            buffer += char
+        else:
+          buffer += char
 
       # get board snapshot
-      board_snapshot = outbound_data.boardData.update() # get the current board state
-          
+      board_snapshot = board_data.update() # get the current board state
+
       # store changes compared to previous snapshot
       for column in board_snapshot.keys():
         for square in range(8):
 
           # if the snapshot squares are not the same save the changes
-          if board_snapshot[column][square] != prev_snapshot[column][square]:
-            boardStateChanges.append((f"{square}{column}", board_snapshot[column][square])) # either True or False
+          if bool(board_snapshot[column][square]) != bool(prev_snapshot[column][square]):
+            board_data.stateChanges.append((f"{square + 1}{column}", board_snapshot[column][square])) # either True or False
 
-        # update previous board snapshot
-        prev_snapshot = board_snapshot
+            # if there are changes, push data to host
+            outbound_data.boardData = board_data
 
-      if boardStateChanges:
-        # if there are changes, push data to host
-        outbound_data.boardData.stateChanges = boardStateChanges.copy() # copy the state changes to the outbound data
+            sys.stdout.write(json.dumps(outbound_data.to_dict()) + "\n") # send the data to the host
 
-        outbound_data.response = ResponseType.SUCCESS # set the response type to success
-
-        uart.write(json.dumps(outbound_data) + "\n") # send the data to the host
-
-        boardStateChanges.clear() # clear the state changes for the next iteration
+      # update previous board snapshot
+      prev_snapshot = {}
+      for column in board_snapshot:
+        prev_snapshot[column] = list(board_snapshot[column])  # copy the list
 
     # return json packet error to host
     except Exception as e:
-      outbound_data.response = ResponseType.ERROR
       outbound_data.error = e
+
+      buffer = "" # clear the buffer to prevent processing old data
+
+      sys.stdout.write(json.dumps(outbound_data.to_dict()) + "\n") # send the data to the host
+
+    del outbound_data
+    gc.collect() # collect garbage to free up memory
 
 # start the serial communication handling thread
 _thread.start_new_thread(serial_communication_thread, ())
