@@ -1,14 +1,6 @@
-import subprocess
 import json
 import threading
-
-try:
-    import openai
-
-except:
-    subprocess.run(["pip", "install", "openai"])
-
-    import openai
+import openai
 
 # resets chat history to default
 def reset_history():

@@ -1,18 +1,7 @@
-import subprocess
 import json
 import random
-import threading
-import time
-
-try:
-    import sounddevice as sd
-    import soundfile as sf
-
-except:
-    subprocess.run(["pip", "install", "sounddevice", "soundfile"])
-
-    import sounddevice as sd
-    import soundfile as sf
+import sounddevice as sd
+import soundfile as sf
 
 def play_sound_file(file_path, volume):
     data, sample_rate = sf.read(file_path)

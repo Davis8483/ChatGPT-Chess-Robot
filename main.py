@@ -1,29 +1,16 @@
-import subprocess
 import json
 import chess_bot
 import webbrowser
 import atexit
 import time
 import platform
-
-try:
-    import pyperclip
-    import pytermgui as ptg
-    from pytermgui import Slider, Window, PixelMatrix
-    import serial
-    import serial.tools.list_ports
-    import continuous_threading
-    from safe_cast import safe_str, safe_float, safe_int
-
-except:
-    subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
-
-    import pyperclip
-    import pytermgui as ptg
-    import serial
-    import serial.tools.list_ports
-    import continuous_threading
-    from safe_cast import safe_str, safe_float, safe_int
+import pyperclip
+import pytermgui as ptg
+from pytermgui import Slider, Window, PixelMatrix
+import serial
+import serial.tools.list_ports
+import continuous_threading
+from safe_cast import safe_str, safe_float, safe_int
 
 if platform.system() != "Windows":
     ptg.tim.print("[bold red]This program requires a windows machine to run...[/]")

@@ -1,4 +1,3 @@
-import subprocess
 import json
 import time
 import matrix_tools
@@ -8,23 +7,12 @@ import pyttsx3 # library is stored localy because of a bug with the original
 import chatGPT
 import play_sound
 import board_visual_popout
-
-try:
-    import stockfish
-    import numpy
-    from safe_cast import safe_float, safe_str
-    import chess
-    import nltk
-    import continuous_threading
-
-except:
-    subprocess.run(["pip", "install", "stockfish", "numpy", "safe-cast", "chess", "nltk", "continuous-threading"])
-    import stockfish
-    import numpy
-    from safe_cast import safe_float, safe_str
-    import chess
-    import nltk
-    import continuous_threading
+import stockfish
+import numpy
+from safe_cast import safe_float, safe_str
+import chess
+import nltk
+import continuous_threading
 
 # load settings file
 with open('settings.json') as json_file:

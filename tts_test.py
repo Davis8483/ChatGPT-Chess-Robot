@@ -1,16 +1,8 @@
-import subprocess
 import pyttsx3 # library is stored localy because of a bug with the original
 import time
 import json
-
-try:
-    import nltk
-    import serial
-
-except:
-    subprocess.run(["pip", "install", "nltk", "pyserial"])
-    import nltk
-    import serial
+import nltk
+import serial
     
 ser = serial.Serial(port="COM4", baudrate=9600)
 

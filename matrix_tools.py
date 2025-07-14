@@ -1,12 +1,5 @@
-import subprocess
 import copy
-
-try:
-    import numpy
-except:
-    subprocess.run(["pip", "install", "numpy"])
-    import numpy
-
+import numpy
 
 # draw a line on a pixel matrix, (0, 0) is in the upper right corner 
 def draw_line(matrix, x1, y1, x2, y2, char):

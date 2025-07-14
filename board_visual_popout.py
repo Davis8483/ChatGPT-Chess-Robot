@@ -1,26 +1,12 @@
-import subprocess
 import time
 import threading
-
-try:
-    from PySide6.QtWidgets import QApplication, QMainWindow, QLabel
-    from PySide6.QtGui import QPixmap
-    from PySide6.QtCore import Qt, QByteArray
-    import darkdetect
-    import win32mica
-    import chess.svg
-    import chess
-
-except:
-    subprocess.run(["pip", "install", "PySide6", "win32mica", "darkdetect", "chess"])
-
-    from PySide6.QtWidgets import QApplication, QMainWindow, QLabel
-    from PySide6.QtGui import QPixmap
-    from PySide6.QtCore import Qt, QByteArray
-    import darkdetect
-    import win32mica
-    import chess.svg
-    import chess
+from PySide6.QtWidgets import QApplication, QMainWindow, QLabel
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, QByteArray
+import darkdetect
+import win32mica
+import chess.svg
+import chess
 
 class Visual():
     def __init__(self):
