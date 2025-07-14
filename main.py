@@ -9,10 +9,11 @@ import platform
 try:
     import pyperclip
     import pytermgui as ptg
+    from pytermgui import Slider, Window, PixelMatrix
     import serial
     import serial.tools.list_ports
     import continuous_threading
-    from safe_cast import *
+    from safe_cast import safe_str, safe_float, safe_int
 
 except:
     subprocess.run(["pip", "install", "pytermgui", "pyserial", "pyperclip", "continuous-threading", "safe-cast"])
@@ -22,7 +23,7 @@ except:
     import serial
     import serial.tools.list_ports
     import continuous_threading
-    from safe_cast import *
+    from safe_cast import safe_str, safe_float, safe_int
 
 if platform.system() != "Windows":
     ptg.tim.print("[bold red]This program requires a windows machine to run...[/]")
@@ -58,10 +59,10 @@ def _create_aliases():
     ptg.tim.alias("app.slider.filled_selected", "bold #ffffff")
 
     # define gui macros used in the status sidebar
-    ptg.tim.define("!connection_status", lambda *_: get_connection_status())
-    ptg.tim.define("!game_status", lambda *_: get_game_status())
-    ptg.tim.define("!game_visuals", lambda *_: chess_bot.get_board_visual())
-    ptg.tim.define("!game_wdl_stats", lambda *_: chess_bot.get_stats_visual())
+    ptg.tim.define("!connection_status", lambda *_: get_connection_status()) # type: ignore
+    ptg.tim.define("!game_status", lambda *_: get_game_status()) # type: ignore
+    ptg.tim.define("!game_visuals", lambda *_: chess_bot.get_board_visual()) # type: ignore
+    ptg.tim.define("!game_wdl_stats", lambda *_: chess_bot.get_stats_visual()) # type: ignore
 
 
 # set default styles for different widget types
@@ -138,7 +139,7 @@ def _define_layout():
     return layout
 
 # returns how much the machine should be jogged by in the x, y, or z direction based on slider input
-def get_steps(slider: float):
+def get_steps(slider: Slider):
     steps = round(2 ** ((slider.value * 10) - 3), 1)
     return steps
 
@@ -218,7 +219,7 @@ def toggle_connection(state: str):
             ser.close()
 
         try:
-            connection_checking_thread.close()
+            connection_checking_thread.close()  # type: ignore
         except:
             pass
 
@@ -330,26 +331,27 @@ def update_joint_offset(joint_num, value):
     serial_interface.goto_position(x=chess_bot.pos_x, y=chess_bot.pos_y, grabber="calibrate", retract=False)
 
 # runs in a separate thread, used to update the matrix on the sensor test page
-def update_sensor_matrix(matrix):
+def update_sensor_matrix(matrix: PixelMatrix):
     letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
     try:
         board = serial_interface.get_board()
 
-        # iterate through the entire board dictionary
-        for row in reversed(range(8)):
-            for column in range(8):
+        if board:
+            # iterate through the entire board dictionary
+            for row in reversed(range(8)):
+                for column in range(8):
 
-                # we are using 3x3 pixels as one square
-                for i in range(3):
-                    for j in range(3):
-                        y = str((7 - row) * 3 + i)
-                        x = str(column * 3 + j)
+                    # we are using 3x3 pixels as one square
+                    for i in range(3):
+                        for j in range(3):
+                            y = int((7 - row) * 3 + i)
+                            x = int(column * 3 + j)
 
-                        if board[str(row + 1)][letter_columns[column]]:
-                            matrix[(7 - row) * 3 + i, column * 3 + j] = "green"
-                        else:
-                            matrix[(7 - row) * 3 + i, column * 3 + j] = "red"
+                            if board[str(row + 1)][letter_columns[column]]:
+                                matrix[y, x] = "green"
+                            else:
+                                matrix[y, x] = "red"
 
         # update the matrix
         matrix.build()
@@ -420,12 +422,13 @@ def save_prompt(command: object, save: dict, _dosave=None):
     else:
         # close save prompt and navigate to specified window
         try:
-            save_alert.close(animate=False)
+            save_alert.close(animate=False)  # type: ignore
         except:
             pass
         
         # execute the set command
-        command()
+        if callable(command):
+            command()
 
 # switches which menu page is displayed
 def navigate_menu(page: str, *args):
@@ -499,15 +502,15 @@ def navigate_menu(page: str, *args):
         
         temperature_slider = ptg.Slider()
         temperature_slider.value = settings["gpt"]["temperature"] / 2
-        ptg.tim.define("!temperature", lambda *_: str(round((temperature_slider.value * 2), 1)))
+        ptg.tim.define("!temperature", lambda *_: str(round((temperature_slider.value * 2), 1))) # type: ignore
 
         presence_penalty_slider = ptg.Slider()
         presence_penalty_slider.value = (settings["gpt"]["presence-penalty"] / 4) + 0.5
-        ptg.tim.define("!presence-penalty", lambda *_: str(round(((presence_penalty_slider.value - 0.5) * 4), 1)))
+        ptg.tim.define("!presence-penalty", lambda *_: str(round(((presence_penalty_slider.value - 0.5) * 4), 1))) # type: ignore
 
         frequency_penalty_slider = ptg.Slider()
         frequency_penalty_slider.value = (settings["gpt"]["frequency-penalty"] / 4) + 0.5
-        ptg.tim.define("!frequency-penalty", lambda *_: str(round(((frequency_penalty_slider.value - 0.5) * 4), 1)))
+        ptg.tim.define("!frequency-penalty", lambda *_: str(round(((frequency_penalty_slider.value - 0.5) * 4), 1))) # type: ignore
 
         request_timeout_input = ptg.InputField(
             value=str(settings["gpt"]["request-timeout"]), 
@@ -577,7 +580,7 @@ def navigate_menu(page: str, *args):
 
         arm1_length_input = ptg.InputField(
             value=str(settings["hardware"]["length-arm-1"]),
-            rompt="Arm 1 Length (mm): "
+            prompt="Arm 1 Length (mm): "
         )
 
         arm2_length_input = ptg.InputField(
@@ -665,7 +668,7 @@ def navigate_menu(page: str, *args):
 
         brightness_slider = ptg.Slider()
         brightness_slider.value = settings["led-strip"]["brightness"] / 255
-        ptg.tim.define("!brightness", lambda *_: str(round(brightness_slider.value * 255)))
+        ptg.tim.define("!brightness", lambda *_: str(round(brightness_slider.value * 255))) # type: ignore
 
         macro_buttons = []
         for macro in settings["led-strip"]["macros"].keys():
@@ -711,11 +714,11 @@ def navigate_menu(page: str, *args):
 
         speed_slider = ptg.Slider()
         speed_slider.value = (settings["led-strip"]["macros"][args[0]]["speed"] / 255)
-        ptg.tim.define("!effect_speed", lambda *_: str(round(speed_slider.value * 255)))
+        ptg.tim.define("!effect_speed", lambda *_: str(round(speed_slider.value * 255))) # type: ignore
 
         intensity_slider = ptg.Slider()
         intensity_slider.value = (settings["led-strip"]["macros"][args[0]]["intensity"] / 255)
-        ptg.tim.define("!effect_intensity", lambda *_: str(round(intensity_slider.value * 255)))
+        ptg.tim.define("!effect_intensity", lambda *_: str(round(intensity_slider.value * 255))) # type: ignore
 
         reverse_toggle = ptg.Toggle(("Reversed: True", "Reversed: False"))
         if not settings["led-strip"]["macros"][args[0]]["reversed"]:
@@ -729,37 +732,37 @@ def navigate_menu(page: str, *args):
         pallet1_red_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][0] / 255)
         pallet1_red_slider.styles.unfilled = "80;0;0"
         pallet1_red_slider.styles.filled = "255;0;0"
-        ptg.tim.define("!pallet_1r", lambda *_: str(round(pallet1_red_slider.value * 255)))
+        ptg.tim.define("!pallet_1r", lambda *_: str(round(pallet1_red_slider.value * 255))) # type: ignore
 
         pallet1_green_slider = ptg.Slider()
         pallet1_green_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][1] / 255)
         pallet1_green_slider.styles.unfilled = "0;80;0"
         pallet1_green_slider.styles.filled = "0;255;0"
-        ptg.tim.define("!pallet_1g", lambda *_: str(round(pallet1_green_slider.value * 255)))
+        ptg.tim.define("!pallet_1g", lambda *_: str(round(pallet1_green_slider.value * 255))) # type: ignore
 
         pallet1_blue_slider = ptg.Slider()
         pallet1_blue_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["1"][2] / 255)
         pallet1_blue_slider.styles.unfilled = "0;0;80"
         pallet1_blue_slider.styles.filled = "0;0;255"
-        ptg.tim.define("!pallet_1b", lambda *_: str(round(pallet1_blue_slider.value * 255)))
+        ptg.tim.define("!pallet_1b", lambda *_: str(round(pallet1_blue_slider.value * 255))) # type: ignore
 
         pallet2_red_slider = ptg.Slider()
         pallet2_red_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][0] / 255)
         pallet2_red_slider.styles.unfilled = "80;0;0"
         pallet2_red_slider.styles.filled = "255;0;0"
-        ptg.tim.define("!pallet_2r", lambda *_: str(round(pallet2_red_slider.value * 255)))
+        ptg.tim.define("!pallet_2r", lambda *_: str(round(pallet2_red_slider.value * 255))) # type: ignore
 
         pallet2_green_slider = ptg.Slider()
         pallet2_green_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][1] / 255)
         pallet2_green_slider.styles.unfilled = "0;80;0"
         pallet2_green_slider.styles.filled = "0;255;0"
-        ptg.tim.define("!pallet_2g", lambda *_: str(round(pallet2_green_slider.value * 255)))
+        ptg.tim.define("!pallet_2g", lambda *_: str(round(pallet2_green_slider.value * 255))) # type: ignore
 
         pallet2_blue_slider = ptg.Slider()
         pallet2_blue_slider.value = (settings["led-strip"]["macros"][args[0]]["pallet"]["2"][2] / 255)
         pallet2_blue_slider.styles.unfilled = "0;0;80"
         pallet2_blue_slider.styles.filled = "0;0;255"
-        ptg.tim.define("!pallet_2b", lambda *_: str(round(pallet2_blue_slider.value * 255)))
+        ptg.tim.define("!pallet_2b", lambda *_: str(round(pallet2_blue_slider.value * 255))) # type: ignore
         
         # when sliders are changed update the color matrix
         update_matrix1 = lambda *_: fill_matrix(pallet1_matrix, f"{round(pallet1_red_slider.value * 255)};{round(pallet1_green_slider.value * 255)};{round(pallet1_blue_slider.value * 255)}")
@@ -898,11 +901,11 @@ def navigate_menu(page: str, *args):
 
         bot_elo_slider = ptg.Slider()
         bot_elo_slider.value = (settings["game"]["bot-elo"] / 3000)
-        ptg.tim.define("!bot-elo", lambda *_: str(round(bot_elo_slider.value * 3000)))
+        ptg.tim.define("!bot-elo", lambda *_: str(round(bot_elo_slider.value * 3000))) # type: ignore
 
         top_move_count_slider = ptg.Slider()
         top_move_count_slider.value = (settings["game"]["top-move-count"] / 10)
-        ptg.tim.define("!top_move_count", lambda *_: str(round(top_move_count_slider.value * 10)))
+        ptg.tim.define("!top_move_count", lambda *_: str(round(top_move_count_slider.value * 10))) # type: ignore
 
         starting_fen_input = ptg.InputField(
             value=str(settings["game"]["starting-fen"]),
@@ -966,7 +969,7 @@ def navigate_menu(page: str, *args):
 
         tts_volume_slider = ptg.Slider()
         tts_volume_slider.value = settings["tts"]["volume"]
-        ptg.tim.define("!tts-volume", lambda *_: str(round(tts_volume_slider.value, 1)))
+        ptg.tim.define("!tts-volume", lambda *_: str(round(tts_volume_slider.value, 1))) # type: ignore
 
         speech_rate_input = ptg.InputField(
             value=str(settings["tts"]["rate-wpm"]),
@@ -1041,12 +1044,12 @@ def navigate_menu(page: str, *args):
         y_input = ptg.InputField(value="0", prompt="Y: ")
 
         # define macros used in this page
-        ptg.tim.define("!steps_z", lambda *_: str(get_steps(z_step_slider)))
-        ptg.tim.define("!steps_xy", lambda *_: str(get_steps(xy_step_slider)))
-        ptg.tim.define("!pos_x", lambda *_: str(round(chess_bot.pos_x, 1)))
-        ptg.tim.define("!pos_y", lambda *_: str(round(chess_bot.pos_y, 1)))
-        ptg.tim.define("!pos_z", lambda *_: str(round(chess_bot.pos_z, 1)))
-        ptg.tim.define("!grabber_state", lambda *_: chess_bot.grabber_state)
+        ptg.tim.define("!steps_z", lambda *_: str(get_steps(z_step_slider))) # type: ignore
+        ptg.tim.define("!steps_xy", lambda *_: str(get_steps(xy_step_slider))) # type: ignore
+        ptg.tim.define("!pos_x", lambda *_: str(round(chess_bot.pos_x, 1))) # type: ignore
+        ptg.tim.define("!pos_y", lambda *_: str(round(chess_bot.pos_y, 1))) # type: ignore
+        ptg.tim.define("!pos_z", lambda *_: str(round(chess_bot.pos_z, 1))) # type: ignore
+        ptg.tim.define("!grabber_state", lambda *_: chess_bot.grabber_state) # type: ignore
 
         new_menu = ptg.Window(
             "[app.title]Jog Machine",
@@ -1070,7 +1073,7 @@ def navigate_menu(page: str, *args):
                 "",
                 x_input,
                 y_input,
-                ["GoTo", lambda *_: serial_interface.goto_position(x=safe_int(x_input.value, None), y=safe_int(y_input.value, None))],
+                ["GoTo", lambda *_: serial_interface.goto_position(x=safe_int(x_input.value, None), y=safe_int(y_input.value, None))], # type: ignore
                 relative_width=0.6
             ),
             "",
@@ -1133,7 +1136,7 @@ def navigate_menu(page: str, *args):
             "",
             ["« Back", lambda *_: navigate_menu("main")],
             is_static=True,
-            is_noresie=True,
+            is_noresize=True,
             vertical_align=0,
             horizontal_align=0,
             title="Menu » Calibrate"
@@ -1164,7 +1167,7 @@ def navigate_menu(page: str, *args):
 
     else:
         try:
-            sensor_matrix_thread.close()
+            sensor_matrix_thread.close()  # type: ignore
         except:
             pass
 
@@ -1173,17 +1176,17 @@ def navigate_menu(page: str, *args):
         joint_1_offset_slider = ptg.Slider()
         joint_1_offset_slider.value = round((round(settings["joint-offsets"]["1"]) / 20) + 0.5, 1)
         joint_1_offset_slider.onchange = lambda *_: update_joint_offset(1, round((joint_1_offset_slider.value - 0.5) * 20))
-        ptg.tim.define("!offset_joint1", lambda *_: str(round((joint_1_offset_slider.value - 0.5) * 20)))
+        ptg.tim.define("!offset_joint1", lambda *_: str(round((joint_1_offset_slider.value - 0.5) * 20))) # type: ignore
 
         joint_2_offset_slider = ptg.Slider()
         joint_2_offset_slider.value = round((round(settings["joint-offsets"]["2"]) / 20) + 0.5, 1)
         joint_2_offset_slider.onchange = lambda *_: update_joint_offset(2, round((joint_2_offset_slider.value - 0.5) * 20))
-        ptg.tim.define("!offset_joint2", lambda *_: str(round((joint_2_offset_slider.value - 0.5) * 20)))
+        ptg.tim.define("!offset_joint2", lambda *_: str(round((joint_2_offset_slider.value - 0.5) * 20))) # type: ignore
 
         joint_3_offset_slider = ptg.Slider()
         joint_3_offset_slider.value = round((round(settings["joint-offsets"]["3"]) / 20) + 0.5, 1)
         joint_3_offset_slider.onchange = lambda *_: update_joint_offset(3, round((joint_3_offset_slider.value - 0.5) * 20))
-        ptg.tim.define("!offset_joint3", lambda *_: str(round((joint_3_offset_slider.value - 0.5) * 20)))
+        ptg.tim.define("!offset_joint3", lambda *_: str(round((joint_3_offset_slider.value - 0.5) * 20))) # type: ignore
 
         new_menu = ptg.Window(
             "[app.title]Joint Offsets",
@@ -1252,7 +1255,7 @@ def navigate_menu(page: str, *args):
     except:
         pass
 
-    menu = new_menu
+    menu: Window = new_menu
 
     # now open the new window
     window_manager.add(menu, assign="menu", animate=False)

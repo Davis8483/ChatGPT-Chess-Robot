@@ -42,10 +42,10 @@ class Visual():
         self.window.setWindowTitle("Chess Bot Board")
 
         self.window.setStyleSheet("background-color: rgba(0, 0, 0, 0)")
-        self.window.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self.window.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
 
         self.label = QLabel()
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.window.setCentralWidget(self.label)
 
         self.update("8/8/8/8/8/8/8/8")
@@ -60,7 +60,7 @@ class Visual():
                 self.window.show()
 
                 # apply mica style
-                win32mica.ApplyMica(self.window.winId(), darkdetect.isDark())
+                win32mica.ApplyMica(self.window.winId(), bool(darkdetect.isDark()))
 
             self.app.processEvents()
             time.sleep(0.2)
@@ -111,7 +111,7 @@ class Visual():
         )
 
         self.image = QPixmap()
-        self.image.loadFromData(QByteArray(board_svg))
+        self.image.loadFromData(QByteArray(board_svg.encode('utf-8')))
 
         self.resizeEvent(None)
 

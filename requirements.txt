@@ -8,5 +8,8 @@ continuous-threading
 sounddevice
 soundfile
 pytermgui
-pyserial
 pyperclip
+pyMultiSerial
+PySide6
+darkdetect
+win32mica

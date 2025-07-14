@@ -49,13 +49,13 @@ def get_response(message):
         global api_response
 
         try:
-            api_response = openai.ChatCompletion.create(
+            api_response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=message_history,
                 temperature=settings["gpt"]["temperature"],
                 presence_penalty=settings["gpt"]["presence-penalty"],
                 frequency_penalty=settings["gpt"]["frequency-penalty"]
-                )["choices"][0]["message"]
+            ).choices[0].message
             
         except Exception as e:
             api_response = e

@@ -12,7 +12,7 @@ import board_visual_popout
 try:
     import stockfish
     import numpy
-    from safe_cast import *
+    from safe_cast import safe_float, safe_str
     import chess
     import nltk
     import continuous_threading
@@ -21,7 +21,7 @@ except:
     subprocess.run(["pip", "install", "stockfish", "numpy", "safe-cast", "chess", "nltk", "continuous-threading"])
     import stockfish
     import numpy
-    from safe_cast import *
+    from safe_cast import safe_float, safe_str
     import chess
     import nltk
     import continuous_threading
@@ -75,8 +75,10 @@ def get_stats_visual():
        
     bar_height = 12
 
-    white = '▓\n' * round(((wdl_stats[0] + (wdl_stats[1] / 2)) * bar_height) / 1000)
-    black = '░\n' * round(((wdl_stats[2] + (wdl_stats[1] / 2)) * bar_height) / 1000)
+    stats = wdl_stats if wdl_stats is not None else [0, 1000, 0]
+
+    white = '▓\n' * round(((stats[0] + (stats[1] / 2)) * bar_height) / 1000)
+    black = '░\n' * round(((stats[2] + (stats[1] / 2)) * bar_height) / 1000)
 
     wdl_stats_visual = f"B\n—\n░\n{black}{white}▓\n—\nW"
     
@@ -190,7 +192,7 @@ class SerialInterface():
                     prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to fetch board,", "[app.label]chess robot not connected..."), {"Ok": None}))
                 break
 
-    def get_effects(self, suppress_errors: bool=False):
+    def get_effects(self, suppress_errors: bool=False) -> list[str]:
 
         while True:
             if self.serial.is_open:
@@ -213,9 +215,13 @@ class SerialInterface():
                 if not suppress_errors:
                     prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to fetch led effects,", "[app.label]chess robot not connected..."), {"Ok": None}))
                 break
+
+        return []
     
     # sets chess bots led strip
-    def set_leds(self, macro: str, custom_data: dict=None, suppress_errors: bool=False):
+    from typing import Optional
+
+    def set_leds(self, macro: str, custom_data: Optional[dict]=None, suppress_errors: bool=False):
         
         if custom_data != None:
             pass
@@ -256,7 +262,9 @@ class SerialInterface():
                 break
 
     # moves arm, grabber, and z axis to desired position
-    def goto_position(self, x: float=None, y: float=None, z: float=None, grabber: str=None, retract: bool=True, suppress_errors: bool=False):
+    from typing import Optional
+
+    def goto_position(self, x: Optional[float]=None, y: Optional[float]=None, z: Optional[float]=None, grabber: Optional[str]=None, retract: bool=True, suppress_errors: bool=False):
         global pos_y, pos_x, pos_z, grabber_state, pos_joint1, pos_joint2, settings
 
         if self.serial.is_open:
@@ -301,7 +309,7 @@ class SerialInterface():
                 xy_update = True
 
             # keep within radial constraints of the arm
-            if numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]) and xy_update:
+            if x and y and numpy.sqrt((x ** 2) + (y ** 2)) < (settings["hardware"]["length-arm-1"] + settings["hardware"]["length-arm-2"]) and xy_update:
 
                 pos_x = safe_float(x)
                 pos_y = safe_float(y)
@@ -367,8 +375,7 @@ class SerialInterface():
         # verify move was successful
         board = self.get_board()
 
-        if board[move[1]][move[0]] or not board[move[3]][move[2]]:
-
+        if board and (board[move[1]][move[0]] or not board[move[3]][move[2]]):
             # go back to waiting position
             position = settings["board-positions"]["home"]["position"]
             self.goto_position(x=position[0], y=position[1], grabber="closed", suppress_errors=True)
@@ -378,7 +385,7 @@ class SerialInterface():
             self.speak(f"Failed to make move, please move from {move[0]}{move[1]} to {move[2]}{move[3]}")
 
             # wait until board is fixed
-            while board[move[1]][move[0]] or not board[move[3]][move[2]] and self.continue_game:
+            while board and (board[move[1]][move[0]] or not board[move[3]][move[2]]) and self.continue_game:
                 board = self.get_board()
 
     def remove_piece(self, square):
@@ -411,14 +418,14 @@ class SerialInterface():
         # verify removal was successful
         board = self.get_board()
 
-        if board[square[1]][square[0]]:
+        if board and board[square[1]][square[0]]:
 
             prompt_queue.put((("[app.title]Fix Board", "", "[app.label]Failed to remove piece,", f"[app.label]please remove {square[0]}{square[1]}"), {"Ok": None}))
 
             self.speak(f"Failed to remove piece, please remove {square[0]}{square[1]}")
 
             # wait until board is fixed
-            while board[square[1]][square[0]] and self.continue_game:
+            while board and board[square[1]][square[0]] and self.continue_game:
                 board = self.get_board()
 
             # countdown timer to allow player to remove hand from board
@@ -489,7 +496,7 @@ class SerialInterface():
 
         else:
             tts_engine.disconnect('started-word')
-            tts_engine.disconnect('finished-utterance', self.serial.reset_output_buffer)
+            tts_engine.disconnect('finished-utterance')
 
         # set voice
         voices = tts_engine.getProperty('voices')
@@ -532,15 +539,16 @@ class SerialInterface():
             
             is_ready = True
 
-            for row in board_snapshot.keys():
-                for column in board_snapshot[row].keys():
-                    if not board_snapshot[row][column] and (sf.get_what_is_on_square(f"{column}{row}") != None):
-                        is_ready = False
+            if board_snapshot:
+                for row in board_snapshot.keys():
+                    for column in board_snapshot[row].keys():
+                        if not board_snapshot[row][column] and (sf.get_what_is_on_square(f"{column}{row}") != None):
+                            is_ready = False
 
-            if is_ready == False:
-                prompt_queue.put((("[app.title]Prepare Board", "", "[app.label]All pieces must be in their", "[app.label]starting position..."), {"Fixed": self.prepare_board, "End Game": lambda *_: self.game_end(do_exit=False)}))
+                if is_ready == False:
+                    prompt_queue.put((("[app.title]Prepare Board", "", "[app.label]All pieces must be in their", "[app.label]starting position..."), {"Fixed": self.prepare_board, "End Game": lambda *_: self.game_end(do_exit=False)}))
 
-            self.board_ready = is_ready
+                self.board_ready = is_ready
 
         else:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Board was disconnected,", "[app.label]chess game cannot be continued..."), {"End Game": lambda *_: self.game_end(do_exit=False)}))
@@ -613,8 +621,8 @@ class SerialInterface():
 
         self.game_state = "waiting"
 
-        self.castling = (False, [""])
-        self.pawn_promotion = (False, [""])
+        self.castling = (False, [])
+        self.pawn_promotion = (False, [])
         self.capture = (False, "")
 
         board_changes = []
@@ -623,7 +631,8 @@ class SerialInterface():
 
         # update led wdl stats
         wdl_stats = sf.get_wdl_stats()
-        self.set_leds("wld-stats", custom_data={"intensity": round(((wdl_stats[0] + (wdl_stats[1] / 2)) * 255) / 1000)}, suppress_errors=True)
+        if wdl_stats:
+            self.set_leds("wld-stats", custom_data={"intensity": round(((wdl_stats[0] + (wdl_stats[1] / 2)) * 255) / 1000)}, suppress_errors=True)
         
         moves_shown = False
 
@@ -648,7 +657,7 @@ class SerialInterface():
                     for square in board_snapshot[row].keys():
 
                         # if the snapshot squares are not the same save the changes
-                        if board_snapshot[row][square] != prev_snapshot[row][square]:
+                        if prev_snapshot and (board_snapshot[row][square] != prev_snapshot[row][square]):
                             board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
 
                 # update previous board snapshot
@@ -742,7 +751,7 @@ class SerialInterface():
                             # update board popout window
                             board_popout_window.update(sf.get_fen_position(), lastmove="".join(self.pawn_promotion[1]))
 
-                            self.pawn_promotion = (False, [""])
+                            self.pawn_promotion = (False, [])
 
                             self.game_moving(lastmove="".join(index))
 
@@ -897,8 +906,9 @@ class SerialInterface():
 
             king_square = board.king(chess.BLACK)
 
-            # show the king is in check on the board visual popout
-            board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
+            if king_square:
+                # show the king is in check on the board visual popout
+                board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
 
         self.capture = (False, "")
 
@@ -908,114 +918,117 @@ class SerialInterface():
 
         # generate the best move using stockfish
         sf_move = sf.get_best_move()
-            
+        
         #check for capture
-        if sf.get_what_is_on_square(sf_move[2:4]) != None:
+        if sf_move and (sf.get_what_is_on_square(sf_move[2:4]) != None):
 
             self.capture = (True, sf.get_what_is_on_square(sf_move[2:4]))
 
             self.remove_piece(sf_move[2:4])
 
         self.make_move(sf_move)
-        
-        # check for castling
-        if (sf_move in self.castling_bishop_positions.keys()) and ("KING" in str(sf.get_what_is_on_square(sf_move[0:2]))):
+
+        if sf_move:
             
-            self.make_move(self.castling_bishop_positions[sf_move])
+            # check for castling
+            if (sf_move in self.castling_bishop_positions.keys()) and ("KING" in str(sf.get_what_is_on_square(sf_move[0:2]))):
+                
+                self.make_move(self.castling_bishop_positions[sf_move])
 
-        # go back to waiting position
-        position = settings["board-positions"]["home"]["position"]
-        self.goto_position(x=position[0], y=position[1], grabber="closed", suppress_errors=True)
+            # go back to waiting position
+            position = settings["board-positions"]["home"]["position"]
+            self.goto_position(x=position[0], y=position[1], grabber="closed", suppress_errors=True)
 
-        # check for pawn promotion
-        if len(sf_move) == 5:
-            self.pawn_promotion = (True, [sf_move[0:2], sf_move[2:4]])
-            
-            prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
-                {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
-            
-            self.speak("Select what you want my promotion to be on the computer, then swap out the piece.")
-            
-            # wait until promotion type is specified
-            while len(self.pawn_promotion[1]) != 3:
+            # check for pawn promotion
+            if len(sf_move) == 5:
+                self.pawn_promotion = (True, [sf_move[0:2], sf_move[2:4]])
+                
+                prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
+                    {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
+                
+                self.speak("Select what you want my promotion to be on the computer, then swap out the piece.")
+                
+                # wait until promotion type is specified
+                while len(self.pawn_promotion[1]) != 3:
 
-                time.sleep(0.5)
+                    time.sleep(0.5)
 
-            prev_snapshot = self.get_board()
+                prev_snapshot = self.get_board()
 
-            board_changes = []
+                board_changes = []
 
-            # wait until piece is swapped out
-            while self.pawn_promotion[0] and self.continue_game:
-                # get board snapshot
-                board_snapshot = self.get_board()
+                # wait until piece is swapped out
+                while self.pawn_promotion[0] and self.continue_game:
+                    # get board snapshot
+                    board_snapshot = self.get_board()
 
-                # check if board is valid
-                if board_snapshot != None:
-                    
-                    # store changes compared to previous snapshot
-                    for row in board_snapshot.keys():
-                        for square in board_snapshot[row].keys():
-
-                            # if the snapshot squares are not the same save the changes
-                            if board_snapshot[row][square] != prev_snapshot[row][square]:
-                                board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
-
-                    if len(board_changes) > 1:
-                    
-                        # make sure no other moves are being made
-                        for index in board_changes:
-                            if (index[0] != self.pawn_promotion[1][1]):
-
-                                self.game_invalid()
-
-                        board_changes = []
+                    # check if board is valid
+                    if board_snapshot != None:
                         
-                        sf_move = "".join(self.pawn_promotion[1])
-                        self.pawn_promotion = (False, "")
+                        # store changes compared to previous snapshot
+                        for row in board_snapshot.keys():
+                            for square in board_snapshot[row].keys():
 
-                    prev_snapshot = board_snapshot
+                                # if the snapshot squares are not the same save the changes
+                                if prev_snapshot and (board_snapshot[row][square] != prev_snapshot[row][square]):
+                                    board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
+
+                        if len(board_changes) > 1:
+                        
+                            # make sure no other moves are being made
+                            for index in board_changes:
+                                if (index[0] != self.pawn_promotion[1][1]):
+
+                                    self.game_invalid()
+
+                            board_changes = []
+                            
+                            sf_move = "".join(self.pawn_promotion[1])
+                            self.pawn_promotion = (False, [])
+
+                        prev_snapshot = board_snapshot
 
 
-        sf.make_moves_from_current_position([sf_move])
+            sf.make_moves_from_current_position([sf_move])
 
-        board_visual = sf.get_board_visual()
+            board_visual = sf.get_board_visual()
 
-        # update board visual popout
-        board_popout_window.update(sf.get_fen_position())
+            # update board visual popout
+            board_popout_window.update(sf.get_fen_position())
 
-        # update board popout window
-        board_popout_window.update(sf.get_fen_position(), lastmove=sf_move)
+            # update board popout window
+            board_popout_window.update(sf.get_fen_position(), lastmove=sf_move)
 
-        # play sound effects
-        if self.capture[0]:
-            play_sound.play_json_sound("capture")
-        
-        else:
-            play_sound.play_json_sound("move")
-
-        # use another library to get info about the game
-        board = chess.Board(sf.get_fen_position())
-
-        outcome = board.outcome()
-
-        # detect checkmate, stalemate, etc
-        if outcome != None:
+            # play sound effects
+            if self.capture[0]:
+                play_sound.play_json_sound("capture")
             
-            self.game_outcome(outcome)
+            else:
+                play_sound.play_json_sound("move")
 
-        # detect check for bots side
-        elif board.is_check():
+            # use another library to get info about the game
+            board = chess.Board(sf.get_fen_position())
 
-            king_square = board.king(chess.WHITE)
+            outcome = board.outcome()
 
-            # show the king is in check on the board visual popout
-            board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
+            # detect checkmate, stalemate, etc
+            if outcome != None:
+                
+                self.game_outcome(outcome)
 
-            # used to play an alert sound when in check
-            self.check_alert_thread = continuous_threading.ContinuousThread(play_sound.play_json_sound, args=("check-alert", True,))
-            
-            self.check_alert_thread.start()
+            # detect check for bots side
+            elif board.is_check():
+
+                king_square = board.king(chess.WHITE)
+
+                if king_square:
+                    # show the king is in check on the board visual popout
+                    board_popout_window.update(sf.get_fen_position(), check=chess.square_name(king_square))
+
+                # used to play an alert sound when in check
+                self.check_alert_thread = continuous_threading.ContinuousThread(play_sound.play_json_sound, args=("check-alert", True,))
+                
+                self.check_alert_thread.start()
             
         # switch to waiting for move
         self.game_waiting()
