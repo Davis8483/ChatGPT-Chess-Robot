@@ -13,6 +13,7 @@ from safe_cast import safe_float, safe_str
 import chess
 import nltk
 import continuous_threading
+from pyMultiSerial import MultiSerial
 
 # load settings file
 with open('settings.json') as json_file:
@@ -126,11 +127,11 @@ def merge_dicts(dict1: dict, dict2: dict):
 
 class SerialInterface():
 
-    def __init__(self, serial_class):
+    def __init__(self, serial_class: MultiSerial):
         global pos_joint1, pos_joint2
 
         # initialize variables
-        self.serial = serial_class
+        self.mSer = serial_class
         self.board_ready = False
         self.game_state = "inactive"
         self.continue_game = False
@@ -142,7 +143,7 @@ class SerialInterface():
         for index in range(10):
             try:
                 # push an empty packet
-                self.serial.write('{}\n'.encode())
+                self.mSer.write('{}\n'.encode())
 
                 connected = True
                 break
@@ -153,20 +154,20 @@ class SerialInterface():
             time.sleep(0.1)
         
         if not connected:
-            self.serial.close()
+            self.mSer.close()
 
     # returns board dictionary
     def get_board(self, suppress_errors: bool=False):
         
         while True:
-            if self.serial.is_open:
+            if self.mSer.is_open:
                 try:
                     # request board
-                    self.serial.write('{"return":"board"}\n'.encode())
+                    self.mSer.write('{"return":"board"}\n'.encode())
 
-                    self.serial.flush()
+                    self.mSer.flush()
 
-                    line = self.serial.read(self.serial.in_waiting).decode("utf-8").strip()
+                    line = self.mSer.read(self.mSer.in_waiting).decode("utf-8").strip()
 
                     # save board dictionary
                     board = json.loads(line)["response"]["board"]
@@ -183,14 +184,14 @@ class SerialInterface():
     def get_effects(self, suppress_errors: bool=False) -> list[str]:
 
         while True:
-            if self.serial.is_open:
+            if self.mSer.is_open:
                 try:
                     # request board
-                    self.serial.write('{"return":"fx-list"}\n'.encode())
+                    self.mSer.write('{"return":"fx-list"}\n'.encode())
 
-                    self.serial.flush()
+                    self.mSer.flush()
 
-                    line = self.serial.read(self.serial.in_waiting).decode("utf-8")
+                    line = self.mSer.read(self.mSer.in_waiting).decode("utf-8")
 
                     # save effects list
                     effects = json.loads(line)["response"]["fx-list"]
@@ -236,11 +237,11 @@ class SerialInterface():
     def push_data(self, data: dict, suppress_errors: bool=False):
 
         while True:
-            if self.serial.is_open:
+            if self.mSer.is_open:
                 try:
-                    self.serial.write(f'{json.dumps(data)}\n'.encode())
+                    self.mSer.write(f'{json.dumps(data)}\n'.encode())
 
-                    self.serial.flush()
+                    self.mSer.flush()
                     break
                 
                 except:
@@ -255,7 +256,7 @@ class SerialInterface():
     def goto_position(self, x: Optional[float]=None, y: Optional[float]=None, z: Optional[float]=None, grabber: Optional[str]=None, retract: bool=True, suppress_errors: bool=False):
         global pos_y, pos_x, pos_z, grabber_state, pos_joint1, pos_joint2, settings
 
-        if self.serial.is_open:
+        if self.mSer.is_open:
             try:
                 # load settings file
                 with open('settings.json') as json_file:
@@ -440,7 +441,7 @@ class SerialInterface():
         def onWord(name, location, length):
 
             # clear other outbound talking motions
-            self.serial.reset_output_buffer()
+            self.mSer.reset_output_buffer()
             
             # find word using positioning info
             word = "".join(filter(str.isalpha, text[location:(location + length)])).lower()
@@ -480,7 +481,7 @@ class SerialInterface():
         # connect talking animation
         if settings["tts"]["talking-animation"]:
             tts_engine.connect('started-word', onWord)
-            tts_engine.connect('finished-utterance', self.serial.reset_output_buffer)
+            tts_engine.connect('finished-utterance', self.mSer.reset_output_buffer)
 
         else:
             tts_engine.disconnect('started-word')
@@ -522,7 +523,7 @@ class SerialInterface():
         self.check_connection()
 
         # check if board is connected
-        if self.serial.is_open:
+        if self.mSer.is_open:
             board_snapshot = self.get_board()
             
             is_ready = True
@@ -843,7 +844,7 @@ class SerialInterface():
             self.check_connection()
 
             # check if board is still connected
-            if not self.serial.is_open:
+            if not self.mSer.is_open:
                 self.continue_game = False
 
                 # notify user why game was stopped

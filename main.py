@@ -7,8 +7,8 @@ import platform
 import pyperclip
 import pytermgui as ptg
 from pytermgui import Slider, Window, PixelMatrix
-import serial
-import serial.tools.list_ports
+from pyMultiSerial import MultiSerial
+from serial import Serial
 import continuous_threading
 from safe_cast import safe_str, safe_float, safe_int
 
@@ -24,9 +24,16 @@ with open('settings.json') as json_file:
     settings = json.load(json_file)
 
 # initialize communication with the chess robot
-ser = serial.Serial(timeout=2)
+mSer = MultiSerial()
+mSer.timeout = 2
 
-serial_interface = chess_bot.SerialInterface(ser)
+#testing things out
+def on_found(p2: str, p3: Serial):
+    p3.is_open
+    return True
+mSer.port_connection_found_callback = on_found
+
+serial_interface = chess_bot.SerialInterface(mSer)
 
 # create styles and macros
 def _create_aliases():
