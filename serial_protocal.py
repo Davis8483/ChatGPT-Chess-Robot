@@ -48,7 +48,21 @@ class LedData:
 
         if from_json:
             for key, value in json.loads(from_json).items():
-                setattr(self, key, value)
+                if key == "pallet":
+                    # If value is already a dict, convert to LedPallet
+                    if isinstance(value, dict):
+                        self.pallet = LedPallet()
+                        # Support both "1"/"2" keys and "color1"/"color2"
+                        if "color1" in value and "color2" in value:
+                            self.pallet.color1 = tuple(value["color1"])
+                            self.pallet.color2 = tuple(value["color2"])
+                        elif "1" in value and "2" in value:
+                            self.pallet.color1 = tuple(value["1"])
+                            self.pallet.color2 = tuple(value["2"])
+                    else:
+                        self.pallet = LedPallet(json.dumps(value))
+                else:
+                    setattr(self, key, value)
 
     def to_dict(self):
         return {
@@ -80,30 +94,20 @@ class ProtocalInboundData:
     returnData: ReturnRequestType | None
 
     def __init__(self, from_json:str|None = None):
+        self.positionZ = None
+        self.angleJoint1 = None
+        self.angleJoint2 = None
+        self.angleJoint3 = None
+
+        self.flushStateChanges = None
+
+        self.leds = None
+
+        self.returnData = None
 
         if from_json:
-            self.positionZ = None
-            self.angleJoint1 = None
-            self.angleJoint2 = None
-            self.angleJoint3 = None
-
-            self.flushStateChanges = None
-
-            self.leds = None
-
-            self.returnData = None
-
             for key, value in json.loads(from_json).items():
                 setattr(self, key, value)
-        else:
-            self.positionZ = 0
-            self.angleJoint1 = 90
-            self.angleJoint2 = 90
-            self.angleJoint3 = 90
-
-            self.flushStateChanges = False
-
-            self.leds = LedData()
 
     def to_dict(self):
         return {
@@ -112,7 +116,8 @@ class ProtocalInboundData:
             "angleJoint2": self.angleJoint2,
             "angleJoint3": self.angleJoint3,
             "flushMoveQueue": self.flushStateChanges,
-            "leds": self.leds.to_dict() if self.leds else None
+            "leds": self.leds.to_dict() if self.leds else None,
+            "returnData": self.returnData.value if self.returnData else None
         }
 
 class BoardData:
@@ -122,8 +127,6 @@ class BoardData:
         self.stateChanges = []
         # Each instance gets its own columns dict with 8 False values per column
         self.columns: dict[str, list[bool]] = {col: [False]*8 for col in "abcdefgh"}
-
-        return self.columns
     
     def to_dict(self):
         return {
@@ -137,7 +140,7 @@ class ProtocalOutboundData:
     boardData: BoardData | None
     ledEffectsList: list[str] | None
 
-    def __init__(self, board_data: BoardData | None = None, include_led_effects: bool = False):
+    def __init__(self, board_data: BoardData | None = None, include_led_effects: bool = False, from_json: str | None = None):
         self.boardData = board_data
         self.error = None
         self.ledEffectsList = [
@@ -149,6 +152,16 @@ class ProtocalOutboundData:
             LedEffect.GRADIENT,
             LedEffect.WLD_STATS
         ] if include_led_effects else None
+
+        if from_json:
+            for key, value in json.loads(from_json).items():
+                if key == "boardData" and value is not None:
+                    bd = BoardData()
+                    bd.columns = value.get("columns", bd.columns)
+                    bd.stateChanges = value.get("stateChanges", [])
+                    setattr(self, key, bd)
+                else:
+                    setattr(self, key, value)
 
     def to_dict(self):
         return {

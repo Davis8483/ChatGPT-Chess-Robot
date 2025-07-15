@@ -1,7 +1,8 @@
 import json
 import time
 from serial import Serial
-from typing import cast
+from typing import cast, Optional
+from board_state_change_util import BoardStateChange
 import matrix_tools
 import os
 import queue
@@ -14,8 +15,16 @@ import numpy
 from safe_cast import safe_float, safe_str, safe_int
 import chess
 import nltk
+import traceback
 import continuous_threading
-from serial_protocal import LedData, ProtocalInboundData, ReturnRequestType
+from serial_protocal import BoardData, LedData, ProtocalInboundData, ProtocalOutboundData, ReturnRequestType
+import logging
+
+logging.basicConfig(
+    filename='app_errors.log',  # Name of the log file
+    level=logging.ERROR,       # Only log messages of severity ERROR and above
+    format='%(asctime)s - %(levelname)s - %(message)s' # Format of log messages
+)
 
 # load settings file
 with open('settings.json') as json_file:
@@ -187,10 +196,8 @@ class SerialInterface():
                 break
 
         return []
-    
-    # sets chess bots led strip
-    from typing import Optional
 
+    # sets chess bots led strip
     def set_leds(self, macro: str, custom_data: Optional[dict]=None, suppress_errors: bool=False):
         
         if custom_data != None:
@@ -208,7 +215,7 @@ class SerialInterface():
                 merge_dicts(data, custom_data)
 
             host_outbound_data = ProtocalInboundData()
-            host_outbound_data.leds = LedData(data)
+            host_outbound_data.leds = LedData(json.dumps(data))
             self.push_data(host_outbound_data)
 
         elif not suppress_errors:
@@ -223,18 +230,62 @@ class SerialInterface():
 
                     self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
 
-                    self.ser.flush()
                     break
                 
-                except:
-                    pass
+                except Exception as e:
+                    error_details = traceback.format_exc()
+                    
+                    logging.error(f"Error pushing data to chess bot: {e}\n{error_details}")
+
             elif not suppress_errors:
                 prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to push data,", "[app.label]chess robot not connected...", "", f"[app.label]{data}"), {"Ok": None}))
                 break
 
-    # moves arm, grabber, and z axis to desired position
-    from typing import Optional
+            time.sleep(0.5)
 
+    def get_board(self) -> BoardData:
+        board = BoardData()
+        if self.ser.is_open:
+            self.ser.reset_input_buffer()
+
+            host_outbound_data = ProtocalInboundData()
+            host_outbound_data.returnData = ReturnRequestType.BOARD_DATA
+            self.ser.write(f'{json.dumps(host_outbound_data.to_dict())}\n'.encode())
+            self.ser.flush()
+
+            buffer = ""
+            start_time = time.time()
+            timeout = 5  # seconds
+
+            while True:
+                if self.ser.in_waiting:
+                    buffer += self.ser.read(self.ser.in_waiting).decode("utf-8", errors="ignore")
+                    try:
+                        # Try to parse the buffer as JSON
+                        data = json.loads(buffer.strip())
+                        logging.error(f"Received line: {buffer.strip()}")
+                        logging.error(f"Sent JSON: {json.dumps(host_outbound_data.to_dict())}")
+                        recieved_data: ProtocalOutboundData = ProtocalOutboundData(from_json=json.dumps(data))
+                        if recieved_data.boardData:
+                            board: BoardData = recieved_data.boardData
+                        break
+                    except json.JSONDecodeError:
+                        pass  # Not a complete JSON object yet
+                if time.time() - start_time > timeout:
+                    logging.error("Timeout waiting for complete JSON from chess bot.")
+                    break
+                time.sleep(0.01)  # Avoid busy waiting
+
+        return board
+
+    # reset the chess boards internaly logged state/move history
+    def flush_board_state_changes(self):
+        if self.ser.is_open:
+            host_outbound_data = ProtocalInboundData()
+            host_outbound_data.flushStateChanges = True
+            self.ser.write(json.dumps(host_outbound_data.to_dict()).encode())
+
+    # moves arm, grabber, and z axis to desired position
     def goto_position(self, x: Optional[float]=None, y: Optional[float]=None, z: Optional[float]=None, grabber: Optional[str]=None, retract: bool=True, suppress_errors: bool=False):
         global pos_y, pos_x, pos_z, grabber_state, pos_joint1, pos_joint2, settings
 
@@ -353,7 +404,7 @@ class SerialInterface():
         # verify move was successful
         board = self.get_board()
 
-        if board and (board[move[1]][move[0]] or not board[move[3]][move[2]]):
+        if board and (board.columns[move[0]][move[1]] or not board.columns[move[2]][move[3]]):
             # go back to waiting position
             position = settings["board-positions"]["home"]["position"]
             self.goto_position(x=position[0], y=position[1], grabber="closed", suppress_errors=True)
@@ -363,7 +414,7 @@ class SerialInterface():
             self.speak(f"Failed to make move, please move from {move[0]}{move[1]} to {move[2]}{move[3]}")
 
             # wait until board is fixed
-            while board and (board[move[1]][move[0]] or not board[move[3]][move[2]]) and self.continue_game:
+            while board and (board.columns[move[0]][move[1]] or not board.columns[move[2]][move[3]]) and self.continue_game:
                 board = self.get_board()
 
     def remove_piece(self, square):
@@ -396,14 +447,14 @@ class SerialInterface():
         # verify removal was successful
         board = self.get_board()
 
-        if board and board[square[1]][square[0]]:
+        if board and board.columns[square[0]][square[1]]:
 
             prompt_queue.put((("[app.title]Fix Board", "", "[app.label]Failed to remove piece,", f"[app.label]please remove {square[0]}{square[1]}"), {"Ok": None}))
 
             self.speak(f"Failed to remove piece, please remove {square[0]}{square[1]}")
 
             # wait until board is fixed
-            while board and board[square[1]][square[0]] and self.continue_game:
+            while board and board.columns[square[0]][square[1]] and self.continue_game:
                 board = self.get_board()
 
             # countdown timer to allow player to remove hand from board
@@ -517,14 +568,14 @@ class SerialInterface():
 
         # check if board is connected
         if self.ser.is_open:
-            board_snapshot = self.get_board()
+            board_snapshot = self.get_board().columns
             
             is_ready = True
 
             if board_snapshot:
-                for row in board_snapshot.keys():
-                    for column in board_snapshot[row].keys():
-                        if not board_snapshot[row][column] and (sf.get_what_is_on_square(f"{column}{row}") != None):
+                for column in board_snapshot.keys():
+                    for square in range(1, 9):
+                        if not square and (sf.get_what_is_on_square(f"{column}{square}") != None):
                             is_ready = False
 
                 if is_ready == False:
@@ -607,16 +658,12 @@ class SerialInterface():
         self.pawn_promotion = (False, [])
         self.capture = (False, "")
 
-        board_changes = []
-
-        prev_snapshot = self.get_board(suppress_errors=True)
+        self.flush_board_state_changes()
 
         # update led wdl stats
         wdl_stats = sf.get_wdl_stats()
         if wdl_stats:
             self.set_leds("wld-stats", custom_data={"intensity": round(((wdl_stats[0] + (wdl_stats[1] / 2)) * 255) / 1000)}, suppress_errors=True)
-        
-        moves_shown = False
 
         best_moves = []
 
@@ -626,212 +673,204 @@ class SerialInterface():
             for move in sf.get_top_moves(settings["game"]["top-move-count"]):
                 best_moves.append(move["Move"])
 
-        while self.continue_game:
+        # MARK: move input logic ----------------------------------------
 
-            # get board snapshot
-            board_snapshot = self.get_board(suppress_errors=True)
+        def run_input_logic(board_data: BoardData):
+            global board_visual, wdl_stats, best_moves
 
-            # check if board is valid
-            if board_snapshot != None:
+            moves_shown = False
+
+            self.capture = (False, "")
+
+            board_changes = board_data.stateChanges
+
+            if (len(board_changes) == 3):
                 
-                # store changes compared to previous snapshot
-                for row in board_snapshot.keys():
-                    for square in board_snapshot[row].keys():
-
-                        # if the snapshot squares are not the same save the changes
-                        if prev_snapshot and (board_snapshot[row][square] != prev_snapshot[row][square]):
-                            board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
-
-                # update previous board snapshot
-                prev_snapshot = board_snapshot
-
-
-                # move input logic ----------------------------------------
-
-                self.capture = (False, "")
-
-                if (len(board_changes) == 3):
+                move1 = [board_changes[0][0], board_changes[2][0]] # first possibility
+                move2 = [board_changes[1][0], board_changes[2][0]] # second possibility
+            
+                # test for a capture move
+                if not board_changes[0][1] and not board_changes[1][1] and board_changes[2][1] and ((move1[0] == move1[1]) or (move2[0] == move2[1])):
                     
-                    move1 = [board_changes[0][0], board_changes[2][0]] # first possibility
-                    move2 = [board_changes[1][0], board_changes[2][0]] # second possibility
-                
-                    # test for a capture move
-                    if not board_changes[0][1] and not board_changes[1][1] and board_changes[2][1] and ((move1[0] == move1[1]) or (move2[0] == move2[1])):
-                        
-                        valid_move = False
+                    valid_move = False
 
-                        for index in [move1, move2, (move1 + ["q"]), (move2 + ["q"])]:
+                    for index in [move1, move2, (move1 + ["q"]), (move2 + ["q"])]:
 
-                            if sf.is_move_correct("".join(index)):
+                        if sf.is_move_correct("".join(index)):
 
-                                valid_move = True
+                            valid_move = True
 
-                                self.capture = (True, sf.get_what_is_on_square(index[1]))
+                            self.capture = (True, sf.get_what_is_on_square(index[1]))
 
-                                play_sound.play_json_sound("capture")
+                            play_sound.play_json_sound("capture")
 
-                                # check for pawn promotion then enable it
-                                if ("PAWN" in str(sf.get_what_is_on_square(index[0]))) and (("1" in index[1]) or ("8" in index[1])):
-                                    self.pawn_promotion = (True, index[0:2])
+                            # check for pawn promotion then enable it
+                            if ("PAWN" in str(sf.get_what_is_on_square(index[0]))) and (("1" in index[1]) or ("8" in index[1])):
+                                self.pawn_promotion = (True, index[0:2])
 
-                                    # ask user what they would like to promote to
-                                    prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
-                                                    {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
+                                # ask user what they would like to promote to
+                                prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
+                                                {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
 
-                                else:
-                                    # make move
-                                    sf.make_moves_from_current_position(["".join(index)])
-                                    board_visual = sf.get_board_visual()
+                            else:
+                                # make move
+                                sf.make_moves_from_current_position(["".join(index)])
+                                board_visual = sf.get_board_visual()
 
-                                    # update board popout window
-                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
-                                
-                                    self.game_moving(lastmove="".join(index))
+                                # update board popout window
+                                board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
+                            
+                                self.game_moving(lastmove="".join(index))
 
-                                board_changes = []
-                                break
+                            self.flush_board_state_changes()
+                            break
 
-                        if not valid_move:
-                            self.game_invalid()
-
-                    else:
+                    if not valid_move:
                         self.game_invalid()
-
-                elif (len(board_changes) == 2):
-
-                    move1 = [board_changes[0][0], board_changes[1][0]] # first possibility
-                    move2 = [board_changes[1][0], board_changes[0][0]] # second possibility
-                    
-                    # test if castling is enabled
-                    if self.castling[0]:
-                        if "".join(move1) == self.castling_bishop_positions["".join(self.castling[1])]:
-
-                            self.castling = (False, [""])
-
-                            self.game_moving(lastmove="".join(index))
-
-                        else:
-                            self.game_invalid()
-
-                    # test if pawn promotion is enabled
-                    elif self.pawn_promotion[0]:
-
-                        # wait until piece modifier is added
-                        if len(self.pawn_promotion[1]) == 3:
-
-                            # make move
-                            sf.make_moves_from_current_position(["".join(self.pawn_promotion[1])])
-
-                            # make sure no other moves are being made
-                            for index in board_changes:
-                                if (index[0] != self.pawn_promotion[1][1]):
-
-                                    self.game_invalid()
-
-                            board_visual = sf.get_board_visual()
-
-                            # update board popout window
-                            board_popout_window.update(sf.get_fen_position(), lastmove="".join(self.pawn_promotion[1]))
-
-                            self.pawn_promotion = (False, [])
-
-                            self.game_moving(lastmove="".join(index))
-
-                        else:
-                            self.game_invalid()
-
-                    # test for the precursor to a capture move
-                    elif not board_changes[0][1] and not board_changes[1][1]:
-                        
-                        valid_move = False
-
-                        for index in [move1, move2, (move1 + ["q"]), (move2 + ["q"])]:
-
-                            if sf.is_move_correct("".join(index)) and (str(sf.will_move_be_a_capture("".join(index))) != sf.Capture.NO_CAPTURE):
-                                valid_move = True
-                                break
-
-                        if not valid_move:
-                            self.game_invalid()
-
-                    # test for a normal move
-                    elif not board_changes[0][1] and board_changes[1][1]:
-                        
-                        valid_move = False
-
-                        for index in [move1, (move1 + ["q"])]:
-                            if sf.is_move_correct("".join(index)):
-
-                                valid_move = True
-                                
-                                # check for castling then enable it
-                                if ("".join(index) in self.castling_bishop_positions.keys()) and ("KING" in str(sf.get_what_is_on_square(index[0]))):
-                                    self.castling = (True, index[0:2])
-
-                                    # make move
-                                    sf.make_moves_from_current_position(["".join(index)])
-                                    board_visual = sf.get_board_visual()
-
-                                    # update board popout window
-                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
-
-                                # check for pawn promotion then enable it
-                                elif ("PAWN" in str(sf.get_what_is_on_square(index[0]))) and (("1" in index[1]) or ("8" in index[1])):
-                                    self.pawn_promotion = (True, index[0:2])
-
-                                    # ask user what they would like to promote to
-                                    prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
-                                                    {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
-                                    
-                                    self.speak("Select what you would like to promote to on the computer, then swap out the piece.")
-
-                                else:
-                                    play_sound.play_json_sound("move")
-
-                                    # make move
-                                    sf.make_moves_from_current_position(["".join(index)])
-                                    board_visual = sf.get_board_visual()
-
-                                    # update board popout window
-                                    board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
-
-                                    self.game_moving(lastmove="".join(index))
-
-
-                            # check if piece didn't move position
-                            elif index[0] == index[1]:
-                                valid_move = True
-
-                                # hide possible moves for that piece
-                                board_popout_window.update(sf.get_fen_position())
-
-                                moves_shown = False
-
-                                board_changes = []
-
-                        if not valid_move:
-                            self.game_invalid()
-
-                    else:
-                        self.game_invalid()
-
-
-                elif (len(board_changes) == 1) and not board_changes[0][1]:
-
-                    if not moves_shown:
-                        # show possible moves on popout window
-                        # run it in a seperate thread
-                        t = continuous_threading.Thread(board_popout_window.update, args=(sf.get_fen_position(), None, None, board_changes[0][0]))
-                        t.start()
-
-                        moves_shown = True
-
-                elif len(board_changes) == 0:
-                    pass # do nothing
 
                 else:
-
                     self.game_invalid()
+
+            elif (len(board_changes) == 2):
+
+                move1 = [board_changes[0][0], board_changes[1][0]] # first possibility
+                move2 = [board_changes[1][0], board_changes[0][0]] # second possibility
+                
+                # test if castling is enabled
+                if self.castling[0]:
+                    if "".join(move1) == self.castling_bishop_positions["".join(self.castling[1])]:
+
+                        self.castling = (False, [""])
+
+                        self.game_moving(lastmove="".join(move1))
+
+                    else:
+                        self.game_invalid()
+
+                # test if pawn promotion is enabled
+                elif self.pawn_promotion[0]:
+
+                    # wait until piece modifier is added
+                    if len(self.pawn_promotion[1]) == 3:
+
+                        # make move
+                        sf.make_moves_from_current_position(["".join(self.pawn_promotion[1])])
+
+                        # make sure no other moves are being made
+                        for index in board_changes:
+                            if (index[0] != self.pawn_promotion[1][1]):
+
+                                self.game_invalid()
+
+                        board_visual = sf.get_board_visual()
+
+                        # update board popout window
+                        board_popout_window.update(sf.get_fen_position(), lastmove="".join(self.pawn_promotion[1]))
+
+                        self.pawn_promotion = (False, [])
+
+                        self.game_moving(lastmove="".join(self.pawn_promotion[1]))
+
+                    else:
+                        self.game_invalid()
+
+                # test for the precursor to a capture move
+                elif not board_changes[0][1] and not board_changes[1][1]:
+                    
+                    valid_move = False
+
+                    for index in [move1, move2, (move1 + ["q"]), (move2 + ["q"])]:
+
+                        if sf.is_move_correct("".join(index)) and (str(sf.will_move_be_a_capture("".join(index))) != sf.Capture.NO_CAPTURE):
+                            valid_move = True
+                            break
+
+                    if not valid_move:
+                        self.game_invalid()
+
+                # test for a normal move
+                elif not board_changes[0][1] and board_changes[1][1]:
+                    
+                    valid_move = False
+
+                    for index in [move1, (move1 + ["q"])]:
+                        if sf.is_move_correct("".join(index)):
+
+                            valid_move = True
+                            
+                            # check for castling then enable it
+                            if ("".join(index) in self.castling_bishop_positions.keys()) and ("KING" in str(sf.get_what_is_on_square(index[0]))):
+                                self.castling = (True, index[0:2])
+
+                                # make move
+                                sf.make_moves_from_current_position(["".join(index)])
+                                board_visual = sf.get_board_visual()
+
+                                # update board popout window
+                                board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
+
+                            # check for pawn promotion then enable it
+                            elif ("PAWN" in str(sf.get_what_is_on_square(index[0]))) and (("1" in index[1]) or ("8" in index[1])):
+                                self.pawn_promotion = (True, index[0:2])
+
+                                # ask user what they would like to promote to
+                                prompt_queue.put((("[app.title]Pawn Promotion", "", "[app.label]Select promotion type,", "[app.label]then swap out piece."),
+                                                {"♛  Queen": lambda *_: self.pawn_promotion[1].append("q"), "♝  Bishop": lambda *_: self.pawn_promotion[1].append("b"), "♞  Knight": lambda *_: self.pawn_promotion[1].append("n"), "♜  Rook": lambda *_: self.pawn_promotion[1].append("r")}))
+                                
+                                self.speak("Select what you would like to promote to on the computer, then swap out the piece.")
+
+                            else:
+                                play_sound.play_json_sound("move")
+
+                                # make move
+                                sf.make_moves_from_current_position(["".join(index)])
+                                board_visual = sf.get_board_visual()
+
+                                # update board popout window
+                                board_popout_window.update(sf.get_fen_position(), lastmove="".join(index))
+
+                                self.game_moving(lastmove="".join(index))
+
+
+                        # check if piece didn't move position
+                        elif index[0] == index[1]:
+                            valid_move = True
+
+                            # hide possible moves for that piece
+                            board_popout_window.update(sf.get_fen_position())
+
+                            moves_shown = False
+
+                            self.flush_board_state_changes()
+
+                    if not valid_move:
+                        self.game_invalid()
+
+                else:
+                    self.game_invalid()
+
+
+            elif (len(board_changes) == 1) and not board_changes[0][1]:
+
+                if not moves_shown:
+                    # show possible moves on popout window
+                    # run it in a seperate thread
+                    t = continuous_threading.Thread(board_popout_window.update, args=(sf.get_fen_position(), None, None, board_changes[0][0]))
+                    t.start()
+
+                    moves_shown = True
+
+            elif len(board_changes) == 0:
+                pass # do nothing
+
+            else:
+
+                self.game_invalid()
+
+        board_monitor = BoardStateChange(self.ser)
+        board_monitor.subscribe(run_input_logic)
+
+        while self.continue_game:
 
             # update connection status
             self.check_connection()
@@ -843,7 +882,7 @@ class SerialInterface():
                 # notify user why game was stopped
                 prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Game has been ended,", "[app.label]chess robot not connected..."), {"Ok": None}))
 
-
+            time.sleep(1)
 
         # execution was terminated close the thread
         self.game_end()
@@ -935,41 +974,39 @@ class SerialInterface():
 
                     time.sleep(0.5)
 
-                prev_snapshot = self.get_board()
+                self.flush_board_state_changes()
 
-                board_changes = []
+                swapped_flag = False
+
+                def run_swap_logic(board_data: BoardData):
+                    global sf_move
+                    nonlocal swapped_flag
+
+                    board_changes = board_data.stateChanges
+
+                    if (len(board_changes) > 1) and not swapped_flag:
+                        
+                        # make sure no other moves are being made
+                        for index in board_changes:
+                            if (index[0] != self.pawn_promotion[1][1]):
+
+                                self.game_invalid()
+
+                        self.flush_board_state_changes()
+                        
+                        sf_move = "".join(self.pawn_promotion[1])
+                        self.pawn_promotion = (False, [])
+
+                        swapped_flag = True
+
+                board_monitor = BoardStateChange(self.ser)
+                board_monitor.subscribe(run_swap_logic)
 
                 # wait until piece is swapped out
-                while self.pawn_promotion[0] and self.continue_game:
-                    # get board snapshot
-                    board_snapshot = self.get_board()
+                while self.pawn_promotion[0] and self.continue_game and not swapped_flag:
+                    time.sleep(0.5)
 
-                    # check if board is valid
-                    if board_snapshot != None:
-                        
-                        # store changes compared to previous snapshot
-                        for row in board_snapshot.keys():
-                            for square in board_snapshot[row].keys():
-
-                                # if the snapshot squares are not the same save the changes
-                                if prev_snapshot and (board_snapshot[row][square] != prev_snapshot[row][square]):
-                                    board_changes.append((f"{square}{row}", board_snapshot[row][square])) # either True or False
-
-                        if len(board_changes) > 1:
-                        
-                            # make sure no other moves are being made
-                            for index in board_changes:
-                                if (index[0] != self.pawn_promotion[1][1]):
-
-                                    self.game_invalid()
-
-                            board_changes = []
-                            
-                            sf_move = "".join(self.pawn_promotion[1])
-                            self.pawn_promotion = (False, [])
-
-                        prev_snapshot = board_snapshot
-
+                board_monitor.unsubscribe()
 
             sf.make_moves_from_current_position([sf_move])
 

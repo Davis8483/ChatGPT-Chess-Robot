@@ -11,7 +11,8 @@ from pytermgui import Slider, Window, PixelMatrix
 from serial import Serial
 import continuous_threading
 from safe_cast import safe_str, safe_float, safe_int
-from serial_protocal import LedData, ProtocalInboundData
+from serial_protocal import BoardData, LedData, ProtocalInboundData, ReturnRequestType
+from board_state_change_util import BoardStateChange
 
 if platform.system() != "Windows":
     ptg.tim.print("[bold red]This program requires a windows machine to run...[/]")
@@ -319,27 +320,24 @@ def update_joint_offset(joint_num, value):
     serial_interface.goto_position(x=chess_bot.pos_x, y=chess_bot.pos_y, grabber="calibrate", retract=False)
 
 # runs in a separate thread, used to update the matrix on the sensor test page
-def update_sensor_matrix(matrix: PixelMatrix):
+def update_sensor_matrix(matrix: PixelMatrix, boardData: BoardData):
     letter_columns = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
     try:
-        board = serial_interface.get_board()
+        # iterate through the entire board dictionary
+        for row in reversed(range(8)):
+            for column in range(8):
 
-        if board:
-            # iterate through the entire board dictionary
-            for row in reversed(range(8)):
-                for column in range(8):
+                # we are using 3x3 pixels as one square
+                for i in range(3):
+                    for j in range(3):
+                        y = int((7 - row) * 3 + i)
+                        x = int(column * 3 + j)
 
-                    # we are using 3x3 pixels as one square
-                    for i in range(3):
-                        for j in range(3):
-                            y = int((7 - row) * 3 + i)
-                            x = int(column * 3 + j)
-
-                            if board[str(row + 1)][letter_columns[column]]:
-                                matrix[y, x] = "green"
-                            else:
-                                matrix[y, x] = "red"
+                        if boardData.columns[letter_columns[column]][row]:
+                            matrix[y, x] = "green"
+                        else:
+                            matrix[y, x] = "red"
 
         # update the matrix
         matrix.build()
@@ -420,7 +418,7 @@ def save_prompt(command: object, save: dict, _dosave=None):
 
 # switches which menu page is displayed
 def navigate_menu(page: str, *args):
-    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, sensor_matrix_thread, brightness_slider
+    global menu, settings, joint_1_offset_slider, joint_2_offset_slider, joint_3_offset_slider, brightness_slider, board_monitor
 
     # open new widow based on preset
     if page == "main":
@@ -1073,8 +1071,8 @@ def navigate_menu(page: str, *args):
                     ptg.Label("[app.label]Jog Z:", parent_align=0),
                     ptg.Label("[!pos_z] [/!] mm", parent_align=2)
                 ),
-                ptg.KeyboardButton("e Up", lambda *_: serial_interface.goto_position(z=(int(chess_bot.pos_z) + get_steps(z_step_slider))), bound="e"),
-                ptg.KeyboardButton("q Down", lambda *_: serial_interface.goto_position(z=(int(chess_bot.pos_z) - get_steps(z_step_slider))), bound="q"),
+                ptg.KeyboardButton("e Up", lambda *_: serial_interface.goto_position(z=((chess_bot.pos_z or 0) + get_steps(z_step_slider))), bound="e"),
+                ptg.KeyboardButton("q Down", lambda *_: serial_interface.goto_position(z=((chess_bot.pos_z or 0) - get_steps(z_step_slider))), bound="q"),
                 ptg.Button("Home", lambda *_: serial_interface.goto_position(z=0)),
                 "",
                 ptg.Splitter(
@@ -1137,8 +1135,15 @@ def navigate_menu(page: str, *args):
 
         matrix = ptg.PixelMatrix(24, 24, default="red")
 
-        sensor_matrix_thread = continuous_threading.PeriodicThread(0.1, lambda *_: update_sensor_matrix(matrix))
-        sensor_matrix_thread.start()
+        if ser.is_open:
+            board_monitor = BoardStateChange(ser)
+            board_monitor.subscribe(lambda board_data: update_sensor_matrix(matrix, board_data))
+
+            # make sure to force at least one update
+            host_outbound_data = ProtocalInboundData()
+            host_outbound_data.returnData = ReturnRequestType.BOARD_DATA
+            ser.write(json.dumps(host_outbound_data.to_dict()).encode())
+        
 
         new_menu = ptg.Window(
             "[app.title]Sensor Test",
@@ -1158,7 +1163,7 @@ def navigate_menu(page: str, *args):
 
     else:
         try:
-            sensor_matrix_thread.close()  # type: ignore
+            board_monitor.unsubscribe() # type: ignore
         except:
             pass
 
@@ -1242,11 +1247,11 @@ def navigate_menu(page: str, *args):
     
     # close the old menu window if open
     try:
-        menu.close(animate=False)
+        menu.close(animate=False) # type: ignore
     except:
         pass
 
-    menu: Window = new_menu
+    menu = new_menu
 
     # now open the new window
     window_manager.add(menu, assign="menu", animate=False)

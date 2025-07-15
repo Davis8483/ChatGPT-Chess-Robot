@@ -1,0 +1,169 @@
+2025-07-15 00:27:23,361 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:27:26,604 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:28:36,217 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:28:36,718 - ERROR - Error pushing data to chess bot: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 317, in write
+    raise SerialException("WriteFile failed ({!r})".format(ctypes.WinError()))
+serial.serialutil.SerialException: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))
+
+2025-07-15 00:28:37,219 - ERROR - Error pushing data to chess bot: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 317, in write
+    raise SerialException("WriteFile failed ({!r})".format(ctypes.WinError()))
+serial.serialutil.SerialException: WriteFile failed (PermissionError(13, 'The device does not recognize the command.', None, 22))
+
+2025-07-15 00:30:05,923 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:09,180 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:12,436 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:15,688 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:18,949 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:22,210 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:25,464 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:28,720 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:31,982 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:41,533 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 00:30:44,829 - ERROR - Error pushing data to chess bot: Write timeout
+Traceback (most recent call last):
+  File "c:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\chess_bot.py", line 231, in push_data
+    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+  File "C:\Users\davis\Documents\Github\ChatGPT-Chess-Robot\.venv\Lib\site-packages\serial\serialwin32.py", line 325, in write
+    raise SerialTimeoutException('Write timeout')
+serial.serialutil.SerialTimeoutException: Write timeout
+
+2025-07-15 01:25:42,008 - ERROR - Received line: {"ledEffectsList": null, "error": "syntax error in JSON", "response": null, "boardData": null}
+2025-07-15 01:31:28,167 - ERROR - Received line: 
+2025-07-15 01:32:21,332 - ERROR - Received line: {"ledEffectsList": null, "error": "syn
+2025-07-15 01:33:57,010 - ERROR - Received line: {"ledEffectsList": null, "error": "syn
+2025-07-15 01:33:57,029 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:35:49,863 - ERROR - Received line: {"ledEffectsList": null, "error": "syntax error in JSON", "response": null, "boardData": null}
+2025-07-15 01:35:49,863 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:35:56,143 - ERROR - Received line: {"ledEffe
+2025-07-15 01:35:56,159 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:36:13,806 - ERROR - Received line: 
+2025-07-15 01:36:13,822 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:36:30,662 - ERROR - Received line: {"ledEffectsList": n
+2025-07-15 01:36:30,679 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:42:01,388 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"column
+2025-07-15 01:42:01,404 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:47:22,336 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boar
+2025-07-15 01:47:22,382 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:49:48,239 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false,
+2025-07-15 01:49:48,252 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:52:04,342 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null,
+2025-07-15 01:52:04,357 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 01:55:25,211 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 01:55:25,242 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:01:30,421 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:01:30,438 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:02:34,917 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:02:34,933 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:05:25,521 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:05:25,536 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:09:25,116 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:09:25,131 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:10:41,310 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:10:41,325 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:12:21,709 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:12:21,724 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:14:16,313 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:14:16,328 - ERROR - Sent JSON: {"positionZ": 0, "angleJoint1": 90, "angleJoint2": 90, "angleJoint3": 90, "flushMoveQueue": false, "leds": null, "returnData": "board_data"}
+2025-07-15 02:17:45,220 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:17:45,235 - ERROR - Sent JSON: {"positionZ": null, "angleJoint1": null, "angleJoint2": null, "angleJoint3": null, "flushMoveQueue": null, "leds": null, "returnData": "board_data"}
+2025-07-15 02:22:55,646 - ERROR - Received line: {"ledEffectsList": null, "error": null, "response": null, "boardData": {"columns": {"e": [true, true, false, false, false, false, true, true], "d": [true, true, false, false, false, false, true, true], "g": [true, true, false, false, false, false, true, true], "f": [true, true, false, false, false, false, true, true], "a": [true, false, false, false, false, false, true, true], "h": [true, false, true, false, false, false, true, true], "c": [true, true, false, false, false, false, true, true], "b": [true, true, false, false, false, false, true, true]}, "stateChanges": []}}
+2025-07-15 02:22:55,661 - ERROR - Sent JSON: {"positionZ": null, "angleJoint1": null, "angleJoint2": null, "angleJoint3": null, "flushMoveQueue": null, "leds": null, "returnData": "board_data"}

@@ -12,3 +12,5 @@ pyperclip
 PySide6
 darkdetect
 win32mica
+pyttsx3
+pyserial
