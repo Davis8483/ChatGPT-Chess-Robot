@@ -122,15 +122,16 @@ def serial_communication_thread():
 
       # read serial data until a newline is received
       if test_poll.poll(10):
-        char = sys.stdin.read(1)
-
-        # if the character is a newline, process the buffer
-        if char == "\n":
-          data_recieved(buffer.strip())
-          buffer = ""
-
-        else:
-          buffer += char
+        while True:
+          char = sys.stdin.read(1)
+          if not char:
+            break  # No more data available
+          # print(f"Read char: {char}")  # Optional: Debugging
+          if char == "\n":
+            data_recieved(buffer.strip())
+            buffer = ""
+          else:
+            buffer += char
 
       # get board snapshot
       board_snapshot = board_data.update() # get the current board state
@@ -162,7 +163,6 @@ def serial_communication_thread():
       sys.stdout.write(json.dumps(outbound_data.to_dict()) + "\n") # send the data to the host
 
     del outbound_data
-    gc.collect() # collect garbage to free up memory
 
 # start the serial communication handling thread
 _thread.start_new_thread(serial_communication_thread, ())

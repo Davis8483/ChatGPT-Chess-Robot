@@ -163,6 +163,7 @@ class ProtocalOutboundData:
     ledEffectsList: list | None
 
     def __init__(self, board_data: BoardData | None = None, include_led_effects: bool = False):
+        self.response = None
         self.boardData = board_data
         self.error = None
         self.ledEffectsList = [
