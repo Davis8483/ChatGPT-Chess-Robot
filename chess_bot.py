@@ -1,5 +1,7 @@
 import json
 import time
+from serial import Serial
+from typing import cast
 import matrix_tools
 import os
 import queue
@@ -9,11 +11,11 @@ import play_sound
 import board_visual_popout
 import stockfish
 import numpy
-from safe_cast import safe_float, safe_str
+from safe_cast import safe_float, safe_str, safe_int
 import chess
 import nltk
 import continuous_threading
-from pyMultiSerial import MultiSerial
+from serial_protocal import LedData, ProtocalInboundData, ReturnRequestType
 
 # load settings file
 with open('settings.json') as json_file:
@@ -127,11 +129,11 @@ def merge_dicts(dict1: dict, dict2: dict):
 
 class SerialInterface():
 
-    def __init__(self, serial_class: MultiSerial):
+    def __init__(self, serial_class: Serial):
         global pos_joint1, pos_joint2
 
         # initialize variables
-        self.mSer = serial_class
+        self.ser = serial_class
         self.board_ready = False
         self.game_state = "inactive"
         self.continue_game = False
@@ -143,7 +145,7 @@ class SerialInterface():
         for index in range(10):
             try:
                 # push an empty packet
-                self.mSer.write('{}\n'.encode())
+                self.ser.write('{}\n'.encode())
 
                 connected = True
                 break
@@ -154,44 +156,23 @@ class SerialInterface():
             time.sleep(0.1)
         
         if not connected:
-            self.mSer.close()
-
-    # returns board dictionary
-    def get_board(self, suppress_errors: bool=False):
-        
-        while True:
-            if self.mSer.is_open:
-                try:
-                    # request board
-                    self.mSer.write('{"return":"board"}\n'.encode())
-
-                    self.mSer.flush()
-
-                    line = self.mSer.read(self.mSer.in_waiting).decode("utf-8").strip()
-
-                    # save board dictionary
-                    board = json.loads(line)["response"]["board"]
-
-                    return board
-
-                except:
-                    pass
-            else:
-                if not suppress_errors:
-                    prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to fetch board,", "[app.label]chess robot not connected..."), {"Ok": None}))
-                break
+            self.ser.close()
 
     def get_effects(self, suppress_errors: bool=False) -> list[str]:
 
         while True:
-            if self.mSer.is_open:
+            if self.ser.is_open:
                 try:
+                    host_outbound_data = ProtocalInboundData()
+
+                    host_outbound_data.returnData = ReturnRequestType.LED_EFFECTS_LIST
+
                     # request board
-                    self.mSer.write('{"return":"fx-list"}\n'.encode())
+                    self.ser.write(json.dumps(host_outbound_data.to_dict()).encode())
 
-                    self.mSer.flush()
+                    self.ser.flush()
 
-                    line = self.mSer.read(self.mSer.in_waiting).decode("utf-8")
+                    line = self.ser.read(self.ser.in_waiting).decode("utf-8")
 
                     # save effects list
                     effects = json.loads(line)["response"]["fx-list"]
@@ -226,22 +207,23 @@ class SerialInterface():
             if custom_data != None:
                 merge_dicts(data, custom_data)
 
-            self.push_data({"data": {
-                                    "leds": data
-                                    }})
-            
+            host_outbound_data = ProtocalInboundData()
+            host_outbound_data.leds = LedData(data)
+            self.push_data(host_outbound_data)
+
         elif not suppress_errors:
             prompt_queue.put((("[app.title]Not Connected", "", "[app.label]Failed to set led effect,", "[app.label]invalid macro..."), {"Ok": None}))
 
     # pushes a change to the chess board to preview it
-    def push_data(self, data: dict, suppress_errors: bool=False):
+    def push_data(self, data: ProtocalInboundData, suppress_errors: bool=False):
 
         while True:
-            if self.mSer.is_open:
+            if self.ser.is_open:
                 try:
-                    self.mSer.write(f'{json.dumps(data)}\n'.encode())
 
-                    self.mSer.flush()
+                    self.ser.write(f'{json.dumps(data.to_dict())}\n'.encode())
+
+                    self.ser.flush()
                     break
                 
                 except:
@@ -256,7 +238,7 @@ class SerialInterface():
     def goto_position(self, x: Optional[float]=None, y: Optional[float]=None, z: Optional[float]=None, grabber: Optional[str]=None, retract: bool=True, suppress_errors: bool=False):
         global pos_y, pos_x, pos_z, grabber_state, pos_joint1, pos_joint2, settings
 
-        if self.mSer.is_open:
+        if self.ser.is_open:
             try:
                 # load settings file
                 with open('settings.json') as json_file:
@@ -264,11 +246,11 @@ class SerialInterface():
             except:
                 pass
             
-            data = {"data": {}}
+            host_outbound_data = ProtocalInboundData()
 
             if z != None:
-                pos_z = safe_float(z)
-                data["data"]["position-z"] = pos_z
+                pos_z = safe_int(z)
+                host_outbound_data.positionZ = pos_z
 
             if grabber != None:
                 grabber_state = safe_str(grabber)
@@ -280,10 +262,10 @@ class SerialInterface():
                 elif grabber_state == "calibrate":
                     joint3 = 90
 
-                data["data"]["angle-joint3"] = joint3 + settings["joint-offsets"]["3"]
+                host_outbound_data.angleJoint3 = joint3 + settings["joint-offsets"]["3"]
 
             # push z axis and grabber states to the board
-            self.push_data(data, suppress_errors=suppress_errors)
+            self.push_data(host_outbound_data, suppress_errors=suppress_errors)
 
             xy_update = False
             
@@ -307,20 +289,27 @@ class SerialInterface():
                 new_joint1, new_joint2 = _get_servo_angles(pos_x, pos_y, settings["hardware"]["length-arm-1"], settings["hardware"]["length-arm-2"])
                 
                 if (pos_joint2 < settings["hardware"]["retraction-angle"]) and retract:
+                    
                     # move mass as close to joint 1 as possible
-                    self.push_data({"data": {"angle-joint2": settings["hardware"]["retraction-angle"]}}, suppress_errors=suppress_errors)
-                
+                    hardware_outbound_data = ProtocalInboundData()
+                    hardware_outbound_data.angleJoint2 = settings["hardware"]["retraction-angle"] + settings["joint-offsets"]["2"]
+                    self.push_data(hardware_outbound_data, suppress_errors=suppress_errors)
+
                     # wait for servo to finish
                     time.sleep(abs(settings["hardware"]["retraction-angle"] - pos_joint2) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
 
                 # move joint 1 into position
-                self.push_data({"data": {"angle-joint1": new_joint1 - 90 + settings["joint-offsets"]["1"]}}, suppress_errors=suppress_errors)
+                hardware_outbound_data = ProtocalInboundData()
+                hardware_outbound_data.angleJoint1 = new_joint1 - 90 + settings["joint-offsets"]["1"]
+                self.push_data(hardware_outbound_data, suppress_errors=suppress_errors)
 
                 # wait for servo to finish
                 time.sleep(abs(new_joint1 - pos_joint1) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
 
                 # move joint 2 into position
-                self.push_data({"data": {"angle-joint2": new_joint2 + settings["joint-offsets"]["2"]}}, suppress_errors=suppress_errors)
+                hardware_outbound_data = ProtocalInboundData()
+                hardware_outbound_data.angleJoint2 = new_joint2 + settings["joint-offsets"]["2"]
+                self.push_data(hardware_outbound_data, suppress_errors=suppress_errors)
 
                 # wait for servo to finish
                 time.sleep(abs(new_joint2 - pos_joint2) * (1 / settings["hardware"]["servo-speed-deg/sec"]))
@@ -441,7 +430,7 @@ class SerialInterface():
         def onWord(name, location, length):
 
             # clear other outbound talking motions
-            self.mSer.reset_output_buffer()
+            self.ser.reset_output_buffer()
             
             # find word using positioning info
             word = "".join(filter(str.isalpha, text[location:(location + length)])).lower()
@@ -468,7 +457,9 @@ class SerialInterface():
 
                         # make sure we aren't sending the exact same data
                         if angle != prev_angle:
-                            self.push_data({"data": {"angle-joint3": angle + settings["joint-offsets"]["3"]}}, suppress_errors=True)
+                            hardware_outbound_data = ProtocalInboundData()
+                            hardware_outbound_data.angleJoint3 = angle + settings["joint-offsets"]["3"]
+                            self.push_data(hardware_outbound_data, suppress_errors=True)
 
                         prev_angle = angle
 
@@ -476,12 +467,14 @@ class SerialInterface():
 
             # close the mouth
             angle = settings["hardware"]["grabber-closed-angle"]
-            self.push_data({"data": {"angle-joint3": angle + settings["joint-offsets"]["3"]}}, suppress_errors=True)
+            hardware_outbound_data = ProtocalInboundData()
+            hardware_outbound_data.angleJoint3 = angle + settings["joint-offsets"]["3"]
+            self.push_data(hardware_outbound_data, suppress_errors=True)
 
         # connect talking animation
         if settings["tts"]["talking-animation"]:
             tts_engine.connect('started-word', onWord)
-            tts_engine.connect('finished-utterance', self.mSer.reset_output_buffer)
+            tts_engine.connect('finished-utterance', self.ser.reset_output_buffer)
 
         else:
             tts_engine.disconnect('started-word')
@@ -523,7 +516,7 @@ class SerialInterface():
         self.check_connection()
 
         # check if board is connected
-        if self.mSer.is_open:
+        if self.ser.is_open:
             board_snapshot = self.get_board()
             
             is_ready = True
@@ -844,7 +837,7 @@ class SerialInterface():
             self.check_connection()
 
             # check if board is still connected
-            if not self.mSer.is_open:
+            if not self.ser.is_open:
                 self.continue_game = False
 
                 # notify user why game was stopped

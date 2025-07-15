@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 
 class LedPallet:
     color1: tuple[int, int, int]  # RGB values
@@ -60,7 +61,7 @@ class LedData:
             "pallet": self.pallet.to_dict()
         }
 
-class ReturnRequestType:
+class ReturnRequestType(Enum):
     NONE = "none"
     BOARD_DATA = "board_data"
     LED_EFFECTS_LIST = "led_effects_list"

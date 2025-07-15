@@ -9,7 +9,6 @@ sounddevice
 soundfile
 pytermgui
 pyperclip
-pyMultiSerial
 PySide6
 darkdetect
 win32mica

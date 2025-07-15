@@ -1,4 +1,5 @@
 import json
+import serial.tools.list_ports
 import chess_bot
 import webbrowser
 import atexit
@@ -7,10 +8,10 @@ import platform
 import pyperclip
 import pytermgui as ptg
 from pytermgui import Slider, Window, PixelMatrix
-from pyMultiSerial import MultiSerial
 from serial import Serial
 import continuous_threading
 from safe_cast import safe_str, safe_float, safe_int
+from serial_protocal import LedData, ProtocalInboundData
 
 if platform.system() != "Windows":
     ptg.tim.print("[bold red]This program requires a windows machine to run...[/]")
@@ -24,16 +25,9 @@ with open('settings.json') as json_file:
     settings = json.load(json_file)
 
 # initialize communication with the chess robot
-mSer = MultiSerial()
-mSer.timeout = 2
+ser = Serial(timeout=2)
 
-#testing things out
-def on_found(p2: str, p3: Serial):
-    p3.is_open
-    return True
-mSer.port_connection_found_callback = on_found
-
-serial_interface = chess_bot.SerialInterface(mSer)
+serial_interface = chess_bot.SerialInterface(ser)
 
 # create styles and macros
 def _create_aliases():
@@ -673,6 +667,10 @@ def navigate_menu(page: str, *args):
                                                   }})])
             macro_buttons.append("")
 
+        host_outbound_data = ProtocalInboundData()
+        host_outbound_data.leds = LedData()
+        host_outbound_data.leds.brightness = round(brightness_slider.value * 255)
+
         # create the page
         new_menu = ptg.Window(
             "[app.title]LED Settings",
@@ -684,9 +682,7 @@ def navigate_menu(page: str, *args):
                 ),
                 brightness_slider,
                 "",
-                ["Preview", lambda *_: serial_interface.push_data({"data": {
-                                                                    "leds": {
-                                                                        "brightness": round(brightness_slider.value * 255)}}})],
+                ["Preview", lambda *_: serial_interface.push_data(host_outbound_data)],
                 relative_width=0.6
             ),
             "",
@@ -783,6 +779,24 @@ def navigate_menu(page: str, *args):
         else:
             effects = "\nNot Connected\n"
 
+        host_outbound_data = ProtocalInboundData()
+        host_outbound_data.leds = LedData()
+        host_outbound_data.leds.effect = str(effect_input.value)
+        host_outbound_data.leds.speed = round(speed_slider.value * 255)
+        host_outbound_data.leds.intensity = round(intensity_slider.value * 255)
+        host_outbound_data.leds.brightness = round(brightness_slider.value * 255)
+        host_outbound_data.leds.reversed = reverse_toggle.checked
+        host_outbound_data.leds.pallet.color1 = (
+                round(pallet1_red_slider.value * 255),
+                round(pallet1_green_slider.value * 255),
+                round(pallet1_blue_slider.value * 255)
+            )
+        host_outbound_data.leds.pallet.color2 = (
+                round(pallet2_red_slider.value * 255),
+                round(pallet2_green_slider.value * 255),
+                round(pallet2_blue_slider.value * 255)
+            )
+
         # create the page
         new_menu = ptg.Window(
             f"[app.title]{settings['led-strip']['macros'][args[0]]['label']}",
@@ -839,24 +853,7 @@ def navigate_menu(page: str, *args):
                     ),
                 ),
                 "",
-                ["Preview", lambda *_: serial_interface.push_data({"data": {
-                                                                    "leds": {
-                                                                        "effect": safe_str(effect_input.value, "blink"),
-                                                                        "speed": round(speed_slider.value * 255),
-                                                                        "intensity": round(intensity_slider.value * 255),
-                                                                        "reversed": reverse_toggle.checked,
-                                                                        "pallet":{
-                                                                            "1": [
-                                                                                round(pallet1_red_slider.value * 255),
-                                                                                round(pallet1_green_slider.value * 255),
-                                                                                round(pallet1_blue_slider.value * 255)
-                                                                            ],
-                                                                            "2": [
-                                                                                round(pallet2_red_slider.value * 255),
-                                                                                round(pallet2_green_slider.value * 255),
-                                                                                round(pallet2_blue_slider.value * 255)
-                                                                            ]
-                                                                        }}}})],
+                ["Preview", lambda *_: serial_interface.push_data(host_outbound_data)],
                 relative_width = 0.6
             ),
             "",
@@ -1076,8 +1073,8 @@ def navigate_menu(page: str, *args):
                     ptg.Label("[app.label]Jog Z:", parent_align=0),
                     ptg.Label("[!pos_z] [/!] mm", parent_align=2)
                 ),
-                ptg.KeyboardButton("e Up", lambda *_: serial_interface.goto_position(z=(chess_bot.pos_z + get_steps(z_step_slider))), bound="e"),
-                ptg.KeyboardButton("q Down", lambda *_: serial_interface.goto_position(z=(chess_bot.pos_z - get_steps(z_step_slider))), bound="q"),
+                ptg.KeyboardButton("e Up", lambda *_: serial_interface.goto_position(z=(int(chess_bot.pos_z) + get_steps(z_step_slider))), bound="e"),
+                ptg.KeyboardButton("q Down", lambda *_: serial_interface.goto_position(z=(int(chess_bot.pos_z) - get_steps(z_step_slider))), bound="q"),
                 ptg.Button("Home", lambda *_: serial_interface.goto_position(z=0)),
                 "",
                 ptg.Splitter(
